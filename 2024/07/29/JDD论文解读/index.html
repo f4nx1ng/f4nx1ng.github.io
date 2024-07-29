@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic%7CRoboto+Slab:300,300italic,400,400italic,700,700italic%7CPT+Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha256-XOqroi11tY4EFQMR9ZYwZWKj5ZXiftSx36RRuC3anlA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.css" integrity="sha256-gkQVf8UKZgQ0HyuxL/VnacadJ+D2Kox2TCEBuNQg5+w=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"f4nx1ng.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.20.0","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"fold":{"enable":false,"height":500},"bookmark":{"enable":true,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInDown"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="JDD是一款自底向上的反序列化漏洞挖掘工具，该工具的论文发表在S&amp;P 2024上。该工具所使用的方法可以说是近几年以来安全工作人员在自动化挖掘反序列化漏洞上的集大成之作，吸收了前人的制作经验同时也增添了一些新的方案。本文记录了个人研读JDD论文原文的过程，并在必要的部分写上了我个人的理解（原文题目：Efficient Detection of Java Deserialization">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JDD论文解读">
+<meta property="og:url" content="https://f4nx1ng.github.io/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/index.html">
+<meta property="og:site_name" content="f4nx1ng&#39;s blog">
+<meta property="og:description" content="JDD是一款自底向上的反序列化漏洞挖掘工具，该工具的论文发表在S&amp;P 2024上。该工具所使用的方法可以说是近几年以来安全工作人员在自动化挖掘反序列化漏洞上的集大成之作，吸收了前人的制作经验同时也增添了一些新的方案。本文记录了个人研读JDD论文原文的过程，并在必要的部分写上了我个人的理解（原文题目：Efficient Detection of Java Deserialization">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/3.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/4.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/fragment.drawio.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/5.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/6.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/%E5%8F%8C%E5%BE%AA%E7%8E%AF.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/7.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/8.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/9.png">
+<meta property="article:published_time" content="2024-07-29T06:36:41.000Z">
+<meta property="article:modified_time" content="2024-07-29T08:20:17.262Z">
+<meta property="article:author" content="f4nx1ng">
+<meta property="article:tag" content="自动化挖掘">
+<meta property="article:tag" content="反序列化">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://f4nx1ng.github.io/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/3.png">
+
+
+<link rel="canonical" href="https://f4nx1ng.github.io/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://f4nx1ng.github.io/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/","path":"2024/07/29/JDD论文解读/","title":"JDD论文解读"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>JDD论文解读 | f4nx1ng's blog</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">f4nx1ng's blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签<span class="badge">4</span></a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">4</span></a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">3</span></a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%BC%95%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">1.引言</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%85%B3%E4%BA%8E%E8%87%AA%E5%BA%95%E5%90%91%E4%B8%8A"><span class="nav-number">1.1.</span> <span class="nav-text">关于自底向上</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%85%B3%E4%BA%8E%E5%B9%B6%E8%A1%8C%E7%9A%84%E6%B3%A8%E5%85%A5%E5%AF%B9%E8%B1%A1%E7%BB%93%E6%9E%84"><span class="nav-number">1.2.</span> <span class="nav-text">关于并行的注入对象结构</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AE%BE%E8%AE%A1"><span class="nav-number">2.</span> <span class="nav-text">设计</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%AD%A5%E9%AA%A41%E8%AF%86%E5%88%AB%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E5%85%A5%E5%8F%A3%E7%82%B9"><span class="nav-number">2.1.</span> <span class="nav-text">步骤1：识别反序列化入口点</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%AD%A5%E9%AA%A42%E7%94%A8%E9%9D%99%E6%80%81%E6%B1%A1%E7%82%B9%E5%88%86%E6%9E%90%E8%AF%86%E5%88%ABgadget-chain-fragment"><span class="nav-number">2.2.</span> <span class="nav-text">步骤2：用静态污点分析识别Gadget
+chain fragment</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#gadget-chain-fragment%E7%9A%84%E5%AE%9A%E4%B9%89"><span class="nav-number">2.2.1.</span> <span class="nav-text">gadget chain fragment的定义</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%8A%A8%E6%80%81%E6%96%B9%E6%B3%95%E7%9A%84%E5%AE%9A%E4%B9%89%E9%93%BE%E6%8E%A5%E6%96%B9%E5%BC%8F%E7%9A%84%E5%AE%9A%E4%B9%89"><span class="nav-number">2.2.2.</span> <span class="nav-text">动态方法的定义（链接方式的定义）：</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%AD%A5%E9%AA%A43%E4%BD%BF%E7%94%A8%E8%87%AA%E5%BA%95%E5%90%91%E4%B8%8A%E7%9A%84%E6%96%B9%E6%B3%95%E9%93%BE%E6%8E%A5gadget-chains-fragment"><span class="nav-number">2.3.</span> <span class="nav-text">步骤3：使用自底向上的方法链接gadget
+chains fragment</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8E%E6%B3%A8%E5%85%A5%E5%AF%B9%E8%B1%A1%E7%9B%B8%E5%85%B3%E7%BA%A6%E6%9D%9F%E7%9A%84iocd%E6%9E%84%E9%80%A0"><span class="nav-number">2.4.</span> <span class="nav-text">基于注入对象相关约束的IOCD构造</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E7%BA%A6%E6%9D%9F%E6%8F%90%E5%8F%96"><span class="nav-number">2.4.1.</span> <span class="nav-text">1.约束提取</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#iocd%E7%94%9F%E6%88%90"><span class="nav-number">2.4.2.</span> <span class="nav-text">2.IOCD生成</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#iocd%E7%9A%84%E5%AE%9A%E5%90%91%E6%A8%A1%E7%B3%8A"><span class="nav-number">2.5.</span> <span class="nav-text">IOCD的定向模糊</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8Eiocd%E7%9A%84%E7%A7%8D%E5%AD%90%E7%94%9F%E6%88%90"><span class="nav-number">2.5.1.</span> <span class="nav-text">1.基于IOCD的种子生成</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E4%BE%9D%E8%B5%96%E4%BA%8E%E6%84%9F%E7%9F%A5%E7%9A%84%E7%A7%8D%E5%AD%90%E7%AA%81%E5%8F%98"><span class="nav-number">2.5.2.</span> <span class="nav-text">2.依赖于感知的种子突变</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%85%B3%E4%BA%8E%E4%BD%BF%E7%94%A8jdd"><span class="nav-number">2.6.</span> <span class="nav-text">关于使用JDD</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE"><span class="nav-number">2.7.</span> <span class="nav-text">参考文献</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="f4nx1ng"
+      src="/images/touxiang.jpg">
+  <p class="site-author-name" itemprop="name">f4nx1ng</p>
+  <div class="site-description" itemprop="description">A big noob</div>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/f4nx1ng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;f4nx1ng" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://f4nx1ng.github.io/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/touxiang.jpg">
+      <meta itemprop="name" content="f4nx1ng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="f4nx1ng's blog">
+      <meta itemprop="description" content="A big noob">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="JDD论文解读 | f4nx1ng's blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          JDD论文解读
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2024-07-29 14:36:41 / 修改时间：16:20:17" itemprop="dateCreated datePublished" datetime="2024-07-29T14:36:41+08:00">2024-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/JAVA%E5%AE%89%E5%85%A8/" itemprop="url" rel="index"><span itemprop="name">JAVA安全</span></a>
+        </span>
+          ，
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/JAVA%E5%AE%89%E5%85%A8/%E8%AE%BA%E6%96%87%E7%A0%94%E8%AF%BB/" itemprop="url" rel="index"><span itemprop="name">论文研读</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>JDD是一款自底向上的反序列化漏洞挖掘工具，该工具的论文发表在S&amp;P
+2024上。该工具所使用的方法可以说是近几年以来安全工作人员在自动化挖掘反序列化漏洞上的集大成之作，吸收了前人的制作经验同时也增添了一些新的方案。本文记录了个人研读JDD论文原文的过程，并在必要的部分写上了我个人的理解（原文题目：Efficient
+Detection of Java Deserialization Gadget Chains via Bottom-up Gadget
+Search and Dataflow-aided Payload
+Construction）在文章中我个人的看法全放在了括号里面。</p>
+<span id="more"></span>
+<h3 id="引言">1.引言</h3>
+<p>首先，以前的工作通常采用自顶向下的静态方法，从source到sink广泛检查gadget的潜在路径。但是，这样的搜索经常会遇到路径爆炸的问题，特别是当小部件链中涉及到equals和put等常见Java方法时。例如，我们的实验表明，像ODDFuzz这样的静态分析方法无法完成对3.6MB的小型Java应用程序的分析。从根本上说，搜索复杂度是指数的，即O(eMn)，其中n是小部件链中动态函数调用的数量，M是动态函数调用候选的平均数量，e是入口点的数量。</p>
+<p>其次，以前的许多工具针对JOI漏洞检测进行静态分析，因此不可避免地会出现高误报。除此之外，ODDFuzz还引入了动态模糊测试来减少误报。</p>
+<p>然而，ODDFuzz没有考虑每个小部件中应该满足的约束。特别是，细粒度数据在每个gadget中的不同对象字段之间流动，导致对象结构不精确，从而导致错误的有效负载。</p>
+<h4 id="关于自底向上">关于自底向上</h4>
+<p>我们的解决方案:自下而上的小工具搜索。我们的主要观察是，像DFS这样的自顶向下搜索将多次分析某些方法，从而导致冗余。例如，fragment
+III和IV之间的一个get()候选方法可能会对fragment
+II和III之间的一个equals()候选方法进行一次分析，然后再对fragment
+II和III之间的另一个候选方法进行一次分析。<strong>（从上到下的搜索，从1到2，和从1到3中间搜索的时候，经历了两遍1-&gt;2，当然前人也有人提出自底向上的方案比如tabby，只不过这两个工具的面向对象不尽相同）</strong></p>
+<p>相反，JDD分析一次源和汇之间所有可能的小部件，并将它们形成小部件片段。然后，JDD采用从接收器到源的自底向上搜索，将所有片段链接到一个链中。具体来说，JDD只需要分析(12
++ 2751 + 148)= 2911条程序执行路径，最多(2911 × 2911 - 2751 × 2751 - 148
+×148 - 12 × 12) × 2 + 2751 =
+1,770,495次片段链接检查，这只是自顶向下方法的0.01%，大大减少了静态小部件搜索空间。<strong>（先进行一次自顶向下搜索一次所有的代码片段，在这一次去分析所有的利用链片段，然后根据片段来进行自底向上。）</strong></p>
+<h4 id="关于并行的注入对象结构">关于并行的注入对象结构</h4>
+<p>我们的解决方案:数据流辅助构造注入对象构造图(IOCD)。我们的关键观察是，不同的注入对象，例如它们的字段，是通过数据流连接起来的。具体来说，图1中不同颜色的两条虚线显示了这两个数据流。</p>
+<p>key(第8行)流向this.key(第17行)，然后this.table[index].key(第27行)；然后，p.key(第8行)流向((NodeImpl)
+obj).key(第17行)，然后<code>(Map&lt;?,?&gt;)o</code>
+(第27行)。因此，JDD推断有两个NodeImpl对象，UIDfault在一个NodeImpl对象的key下，而不是ConcurrentHashMap的table下。更具体地说，JDD在这样的数据流之后构建了一个如图3
+(a)所示的IOCD，它可以用于后续的模糊测试。</p>
+<img data-src="/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/3.png" class>
+<h3 id="设计">设计</h3>
+<p>在阶段1中，JDD检测可能的小部件链，然后在阶段2中，JDD生成注入对象，以利用检测到的小部件链进行验证。</p>
+<p>具体来说，有五个步骤。</p>
+<p>1.在步骤1中，JDD确定反序列化入口点。</p>
+<p>2.JDD从入口点开始，通过静态分析识别小部件片段。</p>
+<p>3.JDD使用自底向上的方法链接小部件片段来构造小部件链，这将用可能的小部件链完成第1阶段。</p>
+<p>4.JDD基于与注入对象相关的约束构造注入对象构造图(IOCD)。</p>
+<p>5.最后，JDD利用IOCD增强的定向模糊来验证小部件链的可利用性</p>
+<p>这里是阶段1。首先，在步骤1中，JDD从识别software
+-rpc[6]中的入口点开始，然后将它们用作开始我们的静态污染分析的源。其次，在步骤2中，JDD从每个源(即开始的入口点)开始遍历目标程序的控制流和数据流图，直到动态方法调用，并将其视为片段。然后，JDD将动态方法的实现视为新源，直到下一个动态方法调用，并将两者之间的代码视为新片段。在这个过程中，JDD识别一些包含接收器的小部件片段，例如，gadget
+fragment5中的MethodUtil.invoke()。<strong>（最终要找到能够作为sink方法的方法调用片段，例如method.invoke，这些不是能够直接实现攻击或者是造成危害的方法而是他们的上一级）</strong></p>
+<p>然后，在步骤3中，JDD使用此片段查找具有动态方法调用LazyValue.createValue()的小部件片段IV，以及基于先前的污染分析结果用于调用createValue()方法的对象值。接下来，JDD使用Gadget
+Fragment IV作为查找Gadget Fragment
+III的新起点，并重复此过程，直到到达源点，从而产生小部件链。<strong>(我们最终要从最后的方法调用片段，如method.invoke当中向上搜寻直到达到源点)</strong></p>
+<p>在链接小部件片段I-V之后，为了完成小部件链，JDD将独立地收集可能执行远程攻击者控制的代码的潜在片段，例如，包含JNDI功能的小部件片段VI。由于小部件片段V具有反射能力，并且参数由攻击者控制，JDD将进一步将其连接到小部件片段VI。<strong>（在之前的搜寻利用链片段的时候，并没有搜寻真正的利用代码，而是转而去搜索了能够调用任意方法的invoke，针对真正的利用方法采取针对性措施进行搜寻，如InitialContext.lookup()）</strong></p>
+<h4 id="步骤1识别反序列化入口点">步骤1：识别反序列化入口点</h4>
+<p>我们分析的第一步是确定给定Java程序中反序列化的入口点。JDD从Java语言的反序列化方法和流行的Java反序列化协议中提取这样的入口点，如表1所示。有两类入口方法:(i)
+Java语言提供的反序列化方法，例如readObjectNoData()、readeexternal()和readObject();
+(ii)流行的Java反序列化协议提供的接口，例如Hessian协议的Map.put()。注意，由于许多这些入口点被定义为接口，因此JDD进一步识别和分析它们的覆盖方法或实现方法作为入口点</p>
+<p><strong>Heesian等非原生的反序列化协议的入口方法都是以反序列化过程当中必定会调用的方法作为实例，而不仅是Heesian2Input.readObject()，比如getter/setter类反序列化当中的getter/setter方法，或者是Heesian反序列化过程当中的toString等等</strong></p>
+<img data-src="/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/4.png" class>
+<h4 id="步骤2用静态污点分析识别gadget-chain-fragment">步骤2：用静态污点分析识别Gadget
+chain fragment</h4>
+<p>两个子步骤：1.gadget chain fragment的形成。2.fragment内的数据流向</p>
+<p>两个动态方法调用之间的代码被视为小工具片段，然后通过污染分析记录第一个方法参数到最后一个方法参数的传播，并且维护一个可达的条件。接下来是关于所谓的gadget
+chains fragment的定义。</p>
+<h5 id="gadget-chain-fragment的定义">gadget chain fragment的定义</h5>
+<p>fragment的执行从片段的头部开始，一直到它的端点。对于每个片段，它的端点通常是一个安全敏感的方法或指向另一个片段的动态方法调用，例如，Object.equals()可以连接到几乎所有由任何类实现的方法“equals()”。</p>
+<p>进一步的fragment当中应该包含一些方法：</p>
+<p>Head，片段的入口方法，并且在当前环境当中存在能够跳转到该方法的函数调用</p>
+<p>End，这是该片段的退出方法，通常是一些动态方法调用或者是危险函数</p>
+<p>其他利用链，它们是非动态方法，在反序列化期间按顺序执行，以连接头和尾</p>
+<h5 id="动态方法的定义链接方式的定义">动态方法的定义（链接方式的定义）：</h5>
+<p>整个gadget chain fragment当中有三种不同的方法调用：</p>
+<p>1.多态：目标类具有继承的层次结构，当调用父类方法时，JDD会将其连接到其子类的对应的覆写方法当中。比如我们考虑一个方法m，B和C都含有该方法且C是B的父类。当有一个fragment的End是C.m，那么我们就可以将其视为可以跳转到以B.m()为Head的任意另一个fragment</p>
+<p>2.动态代理：java可以允许对象被封装为动态代理的实现，当实例调用任意方法时，他就会触发代理当中的invoke方法。</p>
+<p>JDD首先识别调用处理程序内所有执行路径中的小部件片段，然后根据它们的执行路径用相应的方法属性需求标记小部件片段。</p>
+<p>3.反射：反射是java的一种方法调用机制，在参数可控的条件下他可以调用几乎所有的方法。JDD首先检查反射的参数是否受攻击者控制(这样JOI就可以导致RCE)，然后限制它连接包含代码执行能力的片段。请注意，JDD允许反射连接其后续片段中的任何小部件，但基于对现有小部件链的分析，JDD更喜欢两种小部件:(1)没有参数的方法，尤其是getter或is方法，以及接口方法的实现;(2)只有一个布尔或String类型参数的方法</p>
+<h4 id="步骤3使用自底向上的方法链接gadget-chains-fragment">步骤3：使用自底向上的方法链接gadget
+chains fragment</h4>
+<p>在完成小部件片段的搜索后，JDD执行自下而上的搜索，将片段链接在一起，从而构建所有可能的小部件链，如算法1所示。</p>
+<p>首先，JDD获得三种类型的片段:</p>
+<p>(1)Source fragments，其头部是一个源，例如图1中的Gadget Fragment
+I;</p>
+<p>(2)自由状态片段(Free-State
+Fragments)，记录两次动态方法调用之间的方法执行顺序，如图1中的Gadget
+Fragments II-IV;</p>
+<ol start="3" type="1">
+<li>Sink Fragments，其末端为一个Sink，例如图1中的Fragments V、VI。</li>
+</ol>
+<p>注意，JDD需要考虑相应于不同动态特性的污染需求和方法调用条件。例如，sink分片通常要求攻击者控制特定的参数。然后，当找到Sink
+Fragments的前体时，JDD将迭代地检查相应的参数是否可能被污染</p>
+<p><strong>（从这里我们能明白在之前的动态方法的定义当中实际上是在定义每个fragment之间的连接方式，该文章划分fragment的方式是通过找到连接处，将两个连接处之间的代码视为fragment）</strong></p>
+<img data-src="/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/fragment.drawio.png" class>
+<img data-src="/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/5.png" class>
+<p>现在我们在算法1中描述细节。首先，JDD连接了可以转换为汇聚片段的自由状态片段。如算法1所示，在每一轮(第2-19行)中，JDD遍历FreeState
+Fragments中的每个fragment。基于片段的summary，JDD检查到sink
+fragment的链接条件是否满足。</p>
+<p>line5：从sink fragment数据集当中拿到他们的head，然后条件是和free
+state
+fragment的end一样的，如果可以成功链接两个片段，就把frag(fs)加入newSinkFragments，newSinkFragments初始为空，且frag(fs)同时加入sink
+fragment
+dataset，同时跟踪连接要满足的污染需求(如果它们与已经记录的污染需求相同，则合并它们)(第11行)</p>
+<p>如果是这样，fragf将作为下一次迭代的SinkFragment(第8-9行)添加到newSinkFragments中，同时跟踪连接要满足的污染需求(如果它们与已经记录的污染需求相同，则合并它们)(第11行)。由于每次迭代都可以挑选出所有可能连接到当前sink片段的片段，如果没有新的sink片段，即，当newsink
+fragment为空(第15-16行)或达到最大搜索尝试次数时，迭代过程将终止。接下来，遍历源片段，并使用相同的方法检测可连接的后续片段，从而获得所有潜在的小部件链(第20-26行)。</p>
+<p>最后，假设有n
+'个不同的动态方法调用，让我们解释为什么最大迭代次数的上限是n
+'。迭代次数超过n
+'时，最长的片段必然包含两个端点为相同动态方法的片段的候选片段。由于攻击者能够使用相同的动态方法调用任何候选方法，因此攻击者可以直接将后一个调用中的类实现提供给第一个调用，以减少总长度，因此两个相同的动态方法调用之间的路径是冗余的。<strong>（n'为方法动态调用数量的总和）</strong></p>
+<img data-src="/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/6.png" class>
+<p>做了一个图便于理解</p>
+<img data-src="/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/%E5%8F%8C%E5%BE%AA%E7%8E%AF.png" class>
+<h4 id="基于注入对象相关约束的iocd构造">基于注入对象相关约束的IOCD构造</h4>
+<p>分为两个步骤：1.约束提取2.IOCD生成</p>
+<h5 id="约束提取">1.约束提取</h5>
+<p>JDD会通过构造后的fragment链进行数据流和对象推理，对于每个小部件片段，JDD首先使用数据流分析来确定它的哪个字段链接到下一个片段，然后使用后续片段的header方法来确定字段的实际类型。<strong>（数据流分析哪一个字段会传到下一个片段当中，然后根据下一个片段当中的head方法判断其中的类型，通过入参类型判断）</strong></p>
+<p>例如，在图1中的Gadget Fragment
+1中，JDD发现HashMap对象有一个字段表(第3行)，该表应该根据到第8行的数据流存储两个对象(即n1,
+n2)。这里的另一个重要问题是确定这些字段的确切类类型，考虑到它们中的许多被定义为泛型类型或对象，例如第8行中的键，n1和n2的字段键(即这个)。key,
+obj.key)，等等。为了解决这个问题，JDD继续进行数据流跟踪，发现key连接了Fragment
+I和Fragment II, Fragment
+II的header方法是NodeImpl.equals。<strong>（他会不断往下去找，直到这个数据不再涉及方法调用，从而实现fragment链接）</strong></p>
+<p>1.第一类条件约束，执行路径上的普通字段条件约束：与字段相关的条件分支存在于小部件链的执行路径中，请注意，<strong>JDD将不同执行路径共享的约束标记为支配符，这意味着所有执行路径都需要它们。</strong>在数据流跟踪过程中，通过识别约束中检查的变量是否可能被字段污染，JDD并发地收集与字段相关的条件分支约束。此外，为了确保程序执行不会触发异常，应该满足存在的几个隐式约束。例如，在调用某些方法时，字段不能为空。</p>
+<p>2.第二类条件约束，字段间的依赖约束：包含字段之间的条件约束，即约束i-iii，如图3所示。注意，汇聚点通常需要攻击者控制特定字段来注入有效负载。JDD会标记这些字段，以检查它们是否会被输入污染。<strong>为了找到字段依赖约束，通常，JDD会过滤那些影响多个字段的条件约束，然后用相关约束将这些字段标记为字段依赖</strong>。此外，JDD还考虑了Java反射的特定需求。例如，Java反射中使用的三个字段className、methodName和args应该确保目标类包含目标方法（<strong>把约束提取出来然后给字段标记了一下</strong>）</p>
+<img data-src="/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/7.png" class>
+<h5 id="iocd生成">2.IOCD生成</h5>
+<ol type="i">
+<li>JDD将包含在小部件链中的实例化对象视为ClassNodes。每个ClassNode存储以下信息:类名和相关的fieldnode，它们表示反序列化期间可能使用的字段。另一方面，FieldNode存储这些字段的相关约束信息，并标记这些约束是否静态可确定为主导。</li>
+</ol>
+<p>(ii)基于结构约束，classnode通过使用有向边的fieldnode相互连接，从而表明实例化对象之间的层次关系。</p>
+<img data-src="/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/8.png" class>
+<h4 id="iocd的定向模糊">IOCD的定向模糊</h4>
+<p>给定一个小部件链，模糊测试的目标是生成一个可以到达并利用其接收点的注入对象。具体来说，JDD首先基于IOCD生成初始种子，然后使用它们来驱动模糊测试。在定向模糊的探索阶段，<strong>JDD利用覆盖的支配约束的数量来评估种子的能量，引导模糊器覆盖更多的支配约束，直到到达汇聚点。</strong></p>
+<h5 id="基于iocd的种子生成">1.基于IOCD的种子生成</h5>
+<p>具体来说，JDD基于IOCD中的ClassNodes生成无参数实例，并根据有向边建立这些实例的类层次结构，如图3所示。随后，从根ClassNode节点开始，在每个FieldNode上执行广度优先遍历。JDD将提取这些fieldnode的支配约束，并调用约束求解器来生成适当的值，然后将这些值分配给相应的字段。</p>
+<p>在fieldnode之间存在双向边的情况下，表明两个字段之间存在约束依赖关系，JDD从相关的fieldnode中提取支配条件约束。</p>
+<h5 id="依赖于感知的种子突变">2.依赖于感知的种子突变</h5>
+<p>1.选择合适的突变字段，2.通过约束信息减少不确定的突变空间，3.考虑字段依赖关系和嵌套对象结构</p>
+<p>在更改字段时，要考虑该字段与其他相关字段或包含该字段的上层实例对象之间的约束关系</p>
+<img data-src="/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/9.png" class>
+<p>(i)基于条件约束的突变。首先，基于从种子执行中获得的反馈信息，JDD从IOCD中匹配合适的条件约束，这些条件约束来自小部件链的指定程序执行流。利用这些条件约束选择性地指导注射对象的结构突变。为了记录所选择的条件约束策略，JDD定义了一个唯一标识符，并分配了一个2位标志来指示每个条件约束的变异策略。第一个比特表示是否使用约束(0:未选择，1:已选择)，第二个比特表示是否满足约束(true或false)。有了这个标识符，JDD倾向于选择未使用的策略来覆盖更多种类的条件约束组合。如何根据反馈信息生成条件约束支路策略如下:</p>
+<p>1.如果JDD解析了ClassCastException或NullPointerException异常信息，则可以根据错误位置信息(类名，代码行号)从IOCD中匹配导致异常的相关字段，并且JDD将要求这些字段满足特定的约束，即f字段!=
+null, field instanceof X.class。</p>
+<p>2.提取当前到达和下一个支配条件约束之间的所有约束，并根据每个约束的标识符选择突变策略。</p>
+<p>3.如果当前和下一个支配体条件约束之间没有非支配体条件约束，则为当前支配体和前面的条件约束选择随机突变策略，注意支配体条件约束不会改变第二个位标志。</p>
+<p>4.如果程序到达了汇点，但是没有触发预期的恶意指令，JDD首先检查是否有多种方法来构造恶意数据(即，从不同的字段构造)。</p>
+<p>如果存在这样的变化，JDD使用IOCD中记录的信息调用不同的字段来构造恶意数据。否则，随机更改条件约束策略。</p>
+<p>5.如果使用了条件约束的所有策略组合，则分配50%的概率从IOCD中随机选择未标记为突变的现有条件约束的字段。</p>
+<p>6.当程序到达接收器并捕获正在编写的恶意指令时，这意味着注入对象是可利用的，相应的小工具链被归类为可利用的。如果超过时间阈值，或者基于上述特定类型的信息，可以直接确定为不可利用，终止当前测试，并调用下一个对应于下一个小工具链的下一个IOCD来开始新一轮测试。</p>
+<p>（ii）基于对象结构约束的突变。在获得条件约束之后，JDD调用约束求解器来调整对象的结构。然而，正如IOCD所表明的那样，字段之间存在着复杂的约束关系。修改其中一个字段不仅会影响相应的ClassNode，还会影响它的字段以及与其他ClassNode关联的字段。</p>
+<p>因此，仅基于条件约束的单个字段的简单调整可能损害对象的结构有效性。</p>
+<p>为了解决这个问题，我们提出了级联突变策略。当JDD调整一个字段时，它级联地检查受该字段影响的其他字段是否也需要调整。必要时，它同时调整它们以保持注入对象的结构有效性。</p>
+<p>1.单字段级别。改变单个字段，它与其他字段没有任何约束。利用约束求解器求解相关的条件约束，以调整字段的分配。</p>
+<p>2.跨领域水平。在对具有相互约束的字段进行修改时，应确保保留关联字段中的相关信息，并保持对象结构的有效性。</p>
+<p>(iii)基于字段依赖约束的突变。</p>
+<p>基于对受影响字段进行最小修改以避免在突变后破坏有效信息的洞察力，以及利用类层次结构的知识，JDD实现了以下两个跨字段级别的突变器，即嵌套字段值重用、顺序固定调整。</p>
+<p>嵌套字段值重用。在改变特定字段(即mutatedField)之后，递归地检查并调整其相关字段。具体来说，首先根据IOCD上的相关支配约束调整mutatedField的字段。然后，检测受当前约束策略影响的字段，并重用突变后和突变前字段实例之间共享的实例。</p>
+<p>顺序固定调整。如果JDD打算改变一个特定的字段(例如，field1)，并且存在与多个字段相关的约束(例如，field2,
+field3)，
+JDD将分别提取与这三个字段相关的约束。然后调用约束求解器来查找满足所有相关约束的字段1的值，同时最小化字段2和字段3的调整。具体来说，约束求解器首先固定field2和field3，然后为field1确定一个适当的值。如果无法找到满足field1上其他约束的解，则逐步调整field2和field3并继续求解过程。</p>
+<h4 id="关于使用jdd">关于使用JDD</h4>
+<p>目前JDD的制作人员已经公开了该项目的源代码在https://github.com/fdu-sec/JDD，但是在之前的版本（现在原作者已经改了部分源码，但我用的还是最初的版本）在个人的尝试当中我所使用源码并不能正常的在Windows下进行运行，我更改了部分目录及内容，现在已经可以直接导入IDEA进行运行。我fork的仓库也供参考https://github.com/f4nx1ng/JDD</p>
+<h4 id="参考文献">参考文献</h4>
+<p>[1]Chen B, Zhang L, Huang X, et al. Efficient Detection of Java
+Deserialization Gadget Chains via Bottom-up Gadget Search and
+Dataflow-aided Payload Construction[C]//2024 IEEE Symposium on Security
+and Privacy (SP). IEEE Computer Society, 2024: 150-150.</p>
+<p>[2]https://github.com/fdu-sec/JDD</p>
+<p>[3]https://github.com/f4nx1ng/JDD</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>本文作者： </strong>f4nx1ng
+  </li>
+  <li class="post-copyright-link">
+      <strong>本文链接：</strong>
+      <a href="https://f4nx1ng.github.io/2024/07/29/JDD%E8%AE%BA%E6%96%87%E8%A7%A3%E8%AF%BB/" title="JDD论文解读">https://f4nx1ng.github.io/2024/07/29/JDD论文解读/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/zh-CN" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/%E8%87%AA%E5%8A%A8%E5%8C%96%E6%8C%96%E6%8E%98/" rel="tag"># 自动化挖掘</a>
+              <a href="/tags/%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96/" rel="tag"># 反序列化</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/07/29/%E4%BB%8EJAVA%E5%AE%89%E5%85%A8%E6%BC%AB%E8%B0%88%E7%9C%8B%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96/" rel="prev" title="从JAVA安全漫谈看反序列化">
+                  <i class="fa fa-angle-left"></i> 从JAVA安全漫谈看反序列化
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">f4nx1ng</span>
+  </div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.umd.js" integrity="sha256-a+H7FYzJv6oU2hfsfDGM2Ohw/cR9v+hPfxHCLdmCrE8=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lozad.js/1.16.0/lozad.min.js" integrity="sha256-mOFREFhqmHeQbXpK2lp4nA3qooVgACfh88fpJftLBbc=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js" integrity="sha256-j+yj56cdEY2CwkVtGyz18fNybFGpMGJ8JxG3GSyO2+I=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/sidebar.js"></script><script src="/js/next-boot.js"></script><script src="/js/bookmark.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.1/search.js" integrity="sha256-1kfA5uHPf65M5cphT2dvymhkuyHPQp5A53EGZOnOLmc=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+  <script class="next-config" data-name="mermaid" type="application/json">{"enable":true,"theme":{"light":"neutral","dark":"dark"},"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js","integrity":"sha256-stuqcu2FrjYCXDOytWFA5SoUE/r3nkp6gTglzNSlavU="}}</script>
+  <script src="/js/third-party/tags/mermaid.js"></script>
+
+
+  <script src="/js/third-party/fancybox.js"></script>
+
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+</body>
+</html>
