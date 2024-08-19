@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic%7CRoboto+Slab:300,300italic,400,400italic,700,700italic%7CPT+Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha256-XOqroi11tY4EFQMR9ZYwZWKj5ZXiftSx36RRuC3anlA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.css" integrity="sha256-gkQVf8UKZgQ0HyuxL/VnacadJ+D2Kox2TCEBuNQg5+w=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"f4nx1ng.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.20.0","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"fold":{"enable":false,"height":500},"bookmark":{"enable":true,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInDown"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="在众多的ctf比赛当中都会出现有关反序列化利用链拼接的问题，最为典型的题目特征就是以toString函数为主导的多重函数利用栈。所以本文的目的是为了搜寻所有有关getter方法的函数利用栈，以便于后续的利用链挖掘和题目参考。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="关于toString方法与getter方法在利用链拼凑方面的总结">
+<meta property="og:url" content="https://f4nx1ng.github.io/2024/08/19/%E5%85%B3%E4%BA%8EtoString%E6%96%B9%E6%B3%95%E4%B8%8Egetter%E6%96%B9%E6%B3%95%E5%9C%A8%E5%88%A9%E7%94%A8%E9%93%BE%E6%8B%BC%E5%87%91%E6%96%B9%E9%9D%A2%E7%9A%84%E6%80%BB%E7%BB%93/index.html">
+<meta property="og:site_name" content="f4nx1ng&#39;s blog">
+<meta property="og:description" content="在众多的ctf比赛当中都会出现有关反序列化利用链拼接的问题，最为典型的题目特征就是以toString函数为主导的多重函数利用栈。所以本文的目的是为了搜寻所有有关getter方法的函数利用栈，以便于后续的利用链挖掘和题目参考。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2024-08-19T07:52:13.000Z">
+<meta property="article:modified_time" content="2024-08-19T07:54:00.196Z">
+<meta property="article:author" content="f4nx1ng">
+<meta property="article:tag" content="反序列化">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://f4nx1ng.github.io/2024/08/19/%E5%85%B3%E4%BA%8EtoString%E6%96%B9%E6%B3%95%E4%B8%8Egetter%E6%96%B9%E6%B3%95%E5%9C%A8%E5%88%A9%E7%94%A8%E9%93%BE%E6%8B%BC%E5%87%91%E6%96%B9%E9%9D%A2%E7%9A%84%E6%80%BB%E7%BB%93/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://f4nx1ng.github.io/2024/08/19/%E5%85%B3%E4%BA%8EtoString%E6%96%B9%E6%B3%95%E4%B8%8Egetter%E6%96%B9%E6%B3%95%E5%9C%A8%E5%88%A9%E7%94%A8%E9%93%BE%E6%8B%BC%E5%87%91%E6%96%B9%E9%9D%A2%E7%9A%84%E6%80%BB%E7%BB%93/","path":"2024/08/19/关于toString方法与getter方法在利用链拼凑方面的总结/","title":"关于toString方法与getter方法在利用链拼凑方面的总结"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>关于toString方法与getter方法在利用链拼凑方面的总结 | f4nx1ng's blog</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">f4nx1ng's blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签<span class="badge">17</span></a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">6</span></a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">18</span></a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%89%8D%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#tostring%E6%96%B9%E6%B3%95"><span class="nav-number">2.</span> <span class="nav-text">toString方法</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#jackson%E5%8E%9F%E7%94%9F%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96"><span class="nav-number">2.1.</span> <span class="nav-text">jackson原生反序列化</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%9D%A1%E4%BB%B6"><span class="nav-number">2.1.1.</span> <span class="nav-text">条件</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8%E5%88%A9%E7%94%A8%E9%93%BE"><span class="nav-number">2.1.2.</span> <span class="nav-text">使用利用链</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#rome%E5%88%A9%E7%94%A8%E9%93%BE"><span class="nav-number">2.2.</span> <span class="nav-text">Rome利用链</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%9D%A1%E4%BB%B6-1"><span class="nav-number">2.2.1.</span> <span class="nav-text">条件</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8%E5%88%A9%E7%94%A8%E9%93%BE-1"><span class="nav-number">2.2.2.</span> <span class="nav-text">使用利用链</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#jdk%E5%8E%9F%E7%94%9F%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E5%88%A9%E7%94%A8%E9%93%BE"><span class="nav-number">2.3.</span> <span class="nav-text">jdk原生反序列化利用链</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%9D%A1%E4%BB%B6-2"><span class="nav-number">2.3.1.</span> <span class="nav-text">条件</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8%E5%88%A9%E7%94%A8%E9%93%BE-2"><span class="nav-number">2.3.2.</span> <span class="nav-text">使用利用链</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#fastjson%E5%8E%9F%E7%94%9F%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E5%88%A9%E7%94%A8%E9%93%BE"><span class="nav-number">2.4.</span> <span class="nav-text">fastjson原生反序列化利用链</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%9D%A1%E4%BB%B6-3"><span class="nav-number">2.4.1.</span> <span class="nav-text">条件</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8%E5%88%A9%E7%94%A8%E9%93%BE-3"><span class="nav-number">2.4.2.</span> <span class="nav-text">使用利用链</span></a></li></ol></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E8%A7%A6%E5%8F%91tostring%E6%96%B9%E6%B3%95"><span class="nav-number">3.</span> <span class="nav-text">如何触发toString方法</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#badattributevalueexpexception"><span class="nav-number">3.1.</span> <span class="nav-text">BadAttributeValueExpException</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%9D%A1%E4%BB%B6-4"><span class="nav-number">3.1.1.</span> <span class="nav-text">条件</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8%E6%96%B9%E5%BC%8F"><span class="nav-number">3.1.2.</span> <span class="nav-text">使用方式</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#hashmapequalsbean"><span class="nav-number">3.2.</span> <span class="nav-text">HashMap+EqualsBean</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%9D%A1%E4%BB%B6-5"><span class="nav-number">3.2.1.</span> <span class="nav-text">条件</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8%E6%96%B9%E5%BC%8F-1"><span class="nav-number">3.2.2.</span> <span class="nav-text">使用方式</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#hashmapobjectbean"><span class="nav-number">3.3.</span> <span class="nav-text">HashMap+ObjectBean</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%9D%A1%E4%BB%B6-6"><span class="nav-number">3.3.1.</span> <span class="nav-text">条件</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8%E6%96%B9%E5%BC%8F-2"><span class="nav-number">3.3.2.</span> <span class="nav-text">使用方式</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#hotswappabletargetsourcexstring"><span class="nav-number">3.4.</span> <span class="nav-text">HotSwappableTargetSource+XString</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%9D%A1%E4%BB%B6-7"><span class="nav-number">3.4.1.</span> <span class="nav-text">条件</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8%E6%96%B9%E5%BC%8F-3"><span class="nav-number">3.4.2.</span> <span class="nav-text">使用方式</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E5%85%B3%E9%94%AE%E5%87%BD%E6%95%B0"><span class="nav-number">3.4.3.</span> <span class="nav-text">关键函数</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#hessian%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%9C%BA%E5%88%B6"><span class="nav-number">3.5.</span> <span class="nav-text">Hessian反序列化机制</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%9D%A1%E4%BB%B6-8"><span class="nav-number">3.5.1.</span> <span class="nav-text">条件</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8%E6%96%B9%E5%BC%8F-4"><span class="nav-number">3.5.2.</span> <span class="nav-text">使用方式</span></a></li></ol></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E5%88%A9%E7%94%A8%E9%93%BE%E5%88%A9%E7%94%A8"><span class="nav-number">4.</span> <span class="nav-text">反序列化利用链利用</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#romejackson"><span class="nav-number">4.1.</span> <span class="nav-text">rome&amp;jackson</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E7%BB%8F%E5%85%B8%E6%B0%B8%E6%B5%81%E4%BC%A0"><span class="nav-number">4.1.1.</span> <span class="nav-text">经典永流传</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#jndi%E6%B3%A8%E5%85%A5"><span class="nav-number">4.1.2.</span> <span class="nav-text">jndi注入</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#jdk%E5%8E%9F%E7%94%9F%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E5%88%A9%E7%94%A8%E9%93%BE-1"><span class="nav-number">4.2.</span> <span class="nav-text">jdk原生反序列化利用链</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="f4nx1ng"
+      src="/images/touxiang.jpg">
+  <p class="site-author-name" itemprop="name">f4nx1ng</p>
+  <div class="site-description" itemprop="description">A big noob</div>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/f4nx1ng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;f4nx1ng" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://f4nx1ng.github.io/2024/08/19/%E5%85%B3%E4%BA%8EtoString%E6%96%B9%E6%B3%95%E4%B8%8Egetter%E6%96%B9%E6%B3%95%E5%9C%A8%E5%88%A9%E7%94%A8%E9%93%BE%E6%8B%BC%E5%87%91%E6%96%B9%E9%9D%A2%E7%9A%84%E6%80%BB%E7%BB%93/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/touxiang.jpg">
+      <meta itemprop="name" content="f4nx1ng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="f4nx1ng's blog">
+      <meta itemprop="description" content="A big noob">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="关于toString方法与getter方法在利用链拼凑方面的总结 | f4nx1ng's blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          关于toString方法与getter方法在利用链拼凑方面的总结
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2024-08-19 15:52:13 / 修改时间：15:54:00" itemprop="dateCreated datePublished" datetime="2024-08-19T15:52:13+08:00">2024-08-19</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/JAVA%E5%AE%89%E5%85%A8/" itemprop="url" rel="index"><span itemprop="name">JAVA安全</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>在众多的ctf比赛当中都会出现有关反序列化利用链拼接的问题，最为典型的题目特征就是以toString函数为主导的多重函数利用栈。所以本文的目的是为了搜寻所有有关getter方法的函数利用栈，以便于后续的利用链挖掘和题目参考。</p>
+<span id="more"></span>
+<h4 id="前言">前言</h4>
+<p>在众多的ctf比赛当中都会出现有关反序列化利用链拼接的问题，最为典型的题目特征就是以toString函数为主导的多重函数利用栈。所以本文的目的是为了搜寻所有有关getter方法的函数利用栈，以便于后续的利用链挖掘和题目参考。</p>
+<h4 id="tostring方法">toString方法</h4>
+<h5 id="jackson原生反序列化">jackson原生反序列化</h5>
+<h6 id="条件">条件</h6>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.springframework.boot<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spring-boot-starter-web<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<h6 id="使用利用链">使用利用链</h6>
+<p>POJONode#toString-&gt;任意类的getter方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">method.invoke调用getter方法</span><br><span class="line">serializeAsField:<span class="number">688</span>, BeanPropertyWriter (com.fasterxml.jackson.databind.ser)<span class="comment">//获取了类当中的getter方法</span></span><br><span class="line">serializeFields:<span class="number">770</span>, BeanSerializerBase (com.fasterxml.jackson.databind.ser.std)</span><br><span class="line">serialize:<span class="number">183</span>, BeanSerializer (com.fasterxml.jackson.databind.ser)</span><br><span class="line">defaultSerializeValue:<span class="number">1172</span>, SerializerProvider (com.fasterxml.jackson.databind)</span><br><span class="line">serialize:<span class="number">117</span>, POJONode (com.fasterxml.jackson.databind.node)</span><br><span class="line">_serializeNonRecursive:<span class="number">105</span>, InternalNodeMapper$WrapperForSerializer (com.fasterxml.jackson.databind.node)</span><br><span class="line">serialize:<span class="number">85</span>, InternalNodeMapper$WrapperForSerializer (com.fasterxml.jackson.databind.node)</span><br><span class="line">serialize:<span class="number">39</span>, SerializableSerializer (com.fasterxml.jackson.databind.ser.std)</span><br><span class="line">serialize:<span class="number">20</span>, SerializableSerializer (com.fasterxml.jackson.databind.ser.std)</span><br><span class="line">_serialize:<span class="number">502</span>, DefaultSerializerProvider (com.fasterxml.jackson.databind.ser)</span><br><span class="line">serializeValue:<span class="number">341</span>, DefaultSerializerProvider (com.fasterxml.jackson.databind.ser)</span><br><span class="line">serialize:<span class="number">1574</span>, ObjectWriter$Prefetch (com.fasterxml.jackson.databind)</span><br><span class="line">_writeValueAndClose:<span class="number">1275</span>, ObjectWriter (com.fasterxml.jackson.databind)</span><br><span class="line">writeValueAsString:<span class="number">1140</span>, ObjectWriter (com.fasterxml.jackson.databind)</span><br><span class="line">nodeToString:<span class="number">34</span>, InternalNodeMapper (com.fasterxml.jackson.databind.node)</span><br><span class="line">toString:<span class="number">242</span>, BaseJsonNode </span><br></pre></td></tr></table></figure>
+<h5 id="rome利用链">Rome利用链</h5>
+<h6 id="条件-1">条件</h6>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>rome<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>rome<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>1.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<h6 id="使用利用链-1">使用利用链</h6>
+<p>ToStringBean#toString-&gt;调用任意类的getter方法</p>
+<p>beanclass作为可控参数设置为类对象，obj作为可控参数设置为对应类的实例。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> String <span class="title function_">toString</span><span class="params">(String prefix)</span> &#123;</span><br><span class="line">    <span class="type">StringBuffer</span> <span class="variable">sb</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">StringBuffer</span>(<span class="number">128</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">//获取所有的getter</span></span><br><span class="line">        PropertyDescriptor[] pds = BeanIntrospector.getPropertyDescriptors(<span class="built_in">this</span>._beanClass);</span><br><span class="line">        <span class="keyword">if</span> (pds != <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">for</span>(<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; pds.length; ++i) &#123;</span><br><span class="line">                <span class="type">String</span> <span class="variable">pName</span> <span class="operator">=</span> pds[i].getName();</span><br><span class="line">                <span class="type">Method</span> <span class="variable">pReadMethod</span> <span class="operator">=</span> pds[i].getReadMethod();</span><br><span class="line">                <span class="keyword">if</span> (pReadMethod != <span class="literal">null</span> &amp;&amp; pReadMethod.getDeclaringClass() != Object.class &amp;&amp; pReadMethod.getParameterTypes().length == <span class="number">0</span>) &#123;</span><br><span class="line">                    <span class="comment">//调用getter方法</span></span><br><span class="line">                    <span class="type">Object</span> <span class="variable">value</span> <span class="operator">=</span> pReadMethod.invoke(<span class="built_in">this</span>._obj, NO_PARAMS);</span><br><span class="line">                    <span class="built_in">this</span>.printProperty(sb, prefix + <span class="string">&quot;.&quot;</span> + pName, value);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception var8) &#123;</span><br><span class="line">        sb.append(<span class="string">&quot;\n\nEXCEPTION: Could not complete &quot;</span> + <span class="built_in">this</span>._obj.getClass() + <span class="string">&quot;.toString(): &quot;</span> + var8.getMessage() + <span class="string">&quot;\n&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> sb.toString();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h5 id="jdk原生反序列化利用链">jdk原生反序列化利用链</h5>
+<h6 id="条件-2">条件</h6>
+<p>jdk8</p>
+<h6 id="使用利用链-2">使用利用链</h6>
+<p>在之前的toString方法当中大多都是通过toString方法后续本身的方法机制实现的利用链，之前的toString方法通过多重调用能够去调用各个类的getter方法，但是接下来的利用链是传统意义上的利用链，单纯的多重函数调用。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">javax.swing.MultiUIDefaults.toString</span><br><span class="line">            UIDefaults.get</span><br><span class="line">                UIDefaults.getFromHashTable</span><br><span class="line">                    UIDefaults$LazyValue.createValue</span><br><span class="line">                    SwingLazyValue.createValue</span><br></pre></td></tr></table></figure>
+<p>SwingLazyValue.createValue方法能够调用任意类的静态方法以此，我们就可实现命令执行甚至更进一步，详见hessiandlc</p>
+<p>当然除此之外我们还可以在不同版本的jdk8当中找到可以替换的利用链方式，如下的ql文件结合ql代码数据库可以查询可以替换的类，找到不同的toString-&gt;get</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * @kind path-problem</span><br><span class="line"> * @id jdktest/1-1</span><br><span class="line"> * @severity error</span><br><span class="line">*/</span><br><span class="line"></span><br><span class="line">import java</span><br><span class="line"></span><br><span class="line">class ROMethod extends Method&#123;</span><br><span class="line">    ROMethod()&#123;</span><br><span class="line">        this.hasName(&quot;toString&quot;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class Source extends Callable &#123;</span><br><span class="line">    Source()&#123;</span><br><span class="line">        (</span><br><span class="line">            this instanceof ROMethod</span><br><span class="line">        )</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class GetMethod extends Method &#123;</span><br><span class="line">GetMethod()&#123;</span><br><span class="line">        this.hasName(&quot;get&quot;) and</span><br><span class="line">        this.getDeclaringType().getAnAncestor().hasQualifiedName(&quot;java.util&quot;,&quot;Hashtable&quot;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class DangerousMethod extends Callable &#123;</span><br><span class="line">    DangerousMethod()&#123;</span><br><span class="line">        this instanceof GetMethod </span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class CallsDangerousMethod extends Callable &#123;</span><br><span class="line"></span><br><span class="line">    CallsDangerousMethod() &#123;</span><br><span class="line">        exists(Callable a| this.polyCalls(a) and </span><br><span class="line">        a instanceof DangerousMethod )</span><br><span class="line">    &#125;  </span><br><span class="line">&#125;  </span><br><span class="line"></span><br><span class="line"></span><br><span class="line">query predicate edges(Method a, Method b) &#123; </span><br><span class="line">    a.polyCalls(b) </span><br><span class="line">    and</span><br><span class="line">    a.getDeclaringType().getAField().getDeclaringType().hasName(b.getDeclaringType().getName())</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">from Source source, CallsDangerousMethod sink</span><br><span class="line">where edges+(source, sink)</span><br><span class="line">select source, source, sink, &quot;$@ $@ to $@ $@&quot; ,</span><br><span class="line">source.getDeclaringType(),source.getDeclaringType().getName(),</span><br><span class="line">source,source.getName(),</span><br><span class="line">sink.getDeclaringType(),sink.getDeclaringType().getName(),</span><br><span class="line">sink,sink.getName() </span><br></pre></td></tr></table></figure>
+<p>如下是一种替换的方式</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">createValue:<span class="number">73</span>, SwingLazyValue (sun.swing)</span><br><span class="line">getFromHashtable:<span class="number">216</span>, UIDefaults (javax.swing)</span><br><span class="line">get:<span class="number">161</span>, UIDefaults (javax.swing)</span><br><span class="line">getAttribute:<span class="number">265</span>, PKCS9Attributes (sun.security.pkcs)</span><br><span class="line">toString:<span class="number">334</span>, PKCS9Attributes (sun.security.pkcs)</span><br></pre></td></tr></table></figure>
+<h5 id="fastjson原生反序列化利用链">fastjson原生反序列化利用链</h5>
+<h6 id="条件-3">条件</h6>
+<p>fastjson依赖即可</p>
+<h6 id="使用利用链-3">使用利用链</h6>
+<p>该利用连依托于Fastjson本身的机制，Fastjson使用ASM来代替反射，通过ASM的<code>ClassWriter</code>来生成<code>JavaBeanSerializer</code>的子类，重写<code>write</code>方法，<code>JavaBeanSerializer</code>中的<code>write</code>方法会使用反射从<code>JavaBean</code>中获取相关信息，ASM针对不同类会生成独有的序列化工具类，比如<code>ASMSerializer_1_Test</code>
+，也会调用getter获取类种相关信息。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">at com.sun.org.apache.xalan.internal.xsltc.trax.TemplatesImpl.newTransformer(TemplatesImpl.java:486)</span><br><span class="line">at com.sun.org.apache.xalan.internal.xsltc.trax.TemplatesImpl.getOutputProperties(TemplatesImpl.java:507)</span><br><span class="line">at com.alibaba.fastjson.serializer.ASMSerializer_1_TemplatesImpl.write(Unknown Source)</span><br><span class="line">at com.alibaba.fastjson.serializer.ListSerializer.write(ListSerializer.java:135)</span><br><span class="line">at com.alibaba.fastjson.serializer.JSONSerializer.write(JSONSerializer.java:312)</span><br><span class="line">at com.alibaba.fastjson.JSON.toJSONString(JSON.java:1077)</span><br><span class="line">at com.alibaba.fastjson.JSON.toString(JSON.java:1071)</span><br></pre></td></tr></table></figure>
+<h4 id="如何触发tostring方法">如何触发toString方法</h4>
+<h5 id="badattributevalueexpexception">BadAttributeValueExpException</h5>
+<h6 id="条件-4">条件</h6>
+<p>jdk8</p>
+<h6 id="使用方式">使用方式</h6>
+<p>伟大无需多言，简单粗暴的触发方式，在readobject当中就能够直接触发。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">readObject</span><span class="params">(ObjectInputStream ois)</span> <span class="keyword">throws</span> IOException, ClassNotFoundException &#123;</span><br><span class="line">    ObjectInputStream.<span class="type">GetField</span> <span class="variable">gf</span> <span class="operator">=</span> ois.readFields();</span><br><span class="line">    <span class="type">Object</span> <span class="variable">valObj</span> <span class="operator">=</span> gf.get(<span class="string">&quot;val&quot;</span>, <span class="literal">null</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (valObj == <span class="literal">null</span>) &#123;</span><br><span class="line">        val = <span class="literal">null</span>;</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (valObj <span class="keyword">instanceof</span> String) &#123;</span><br><span class="line">        val= valObj;</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (System.getSecurityManager() == <span class="literal">null</span></span><br><span class="line">            || valObj <span class="keyword">instanceof</span> Long</span><br><span class="line">            || valObj <span class="keyword">instanceof</span> Integer</span><br><span class="line">            || valObj <span class="keyword">instanceof</span> Float</span><br><span class="line">            || valObj <span class="keyword">instanceof</span> Double</span><br><span class="line">            || valObj <span class="keyword">instanceof</span> Byte</span><br><span class="line">            || valObj <span class="keyword">instanceof</span> Short</span><br><span class="line">            || valObj <span class="keyword">instanceof</span> Boolean) &#123;</span><br><span class="line">        val = valObj.toString();</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123; <span class="comment">// the serialized object is from a version without JDK-8019292 fix</span></span><br><span class="line">        val = System.identityHashCode(valObj) + <span class="string">&quot;@&quot;</span> + valObj.getClass().getName();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h5 id="hashmapequalsbean">HashMap+EqualsBean</h5>
+<h6 id="条件-5">条件</h6>
+<p>rome依赖</p>
+<h6 id="使用方式-1">使用方式</h6>
+<p>HashMap#readobject-&gt;equalsbean#hash-&gt;equalsbean#hashcode-&gt;toStringbean#toString</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//equalsbean当中的方法</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="type">int</span> <span class="title function_">hashCode</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> beanHashCode();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="type">int</span> <span class="title function_">beanHashCode</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> _obj.toString().hashCode();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h5 id="hashmapobjectbean">HashMap+ObjectBean</h5>
+<h6 id="条件-6">条件</h6>
+<p>rome依赖</p>
+<h6 id="使用方式-2">使用方式</h6>
+<p>HashMap#readobject-&gt;Objectbean#hash-&gt;Objectbean#hashcode-&gt;equalsbean#hashcode-&gt;toStringbean#toString</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">关键函数    </span><br><span class="line">    <span class="comment">//ObjectBean当中的方法</span></span><br><span class="line">    <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">hashCode</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> _equalsBean.beanHashCode();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> String <span class="title function_">toString</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> _toStringBean.toString();</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<h5 id="hotswappabletargetsourcexstring">HotSwappableTargetSource+XString</h5>
+<h6 id="条件-7">条件</h6>
+<p>jdk8+spring</p>
+<h6 id="使用方式-3">使用方式</h6>
+<p>HashMap#readObject-&gt;HashMap#putval-&gt;HotSwappableTargetSource#equals-&gt;XString#equals-&gt;ToStringBean#toString-&gt;ToStringBean#toString</p>
+<h6 id="关键函数">关键函数</h6>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//com.sun.org.apache.xpath.internal.objects.XString.java</span></span><br><span class="line"><span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">equals</span><span class="params">(Object obj2)</span></span><br><span class="line">&#123;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (<span class="literal">null</span> == obj2)</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// In order to handle the &#x27;all&#x27; semantics of</span></span><br><span class="line">    <span class="comment">// nodeset comparisons, we always call the</span></span><br><span class="line">    <span class="comment">// nodeset function.</span></span><br><span class="line">  <span class="keyword">else</span> <span class="keyword">if</span> (obj2 <span class="keyword">instanceof</span> XNodeSet)</span><br><span class="line">    <span class="keyword">return</span> obj2.equals(<span class="built_in">this</span>);</span><br><span class="line">  <span class="keyword">else</span> <span class="keyword">if</span>(obj2 <span class="keyword">instanceof</span> XNumber)</span><br><span class="line">      <span class="keyword">return</span> obj2.equals(<span class="built_in">this</span>);</span><br><span class="line">  <span class="keyword">else</span></span><br><span class="line">    <span class="keyword">return</span> str().equals(obj2.toString());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h5 id="hessian反序列化机制">Hessian反序列化机制</h5>
+<h6 id="条件-8">条件</h6>
+<p>hessian</p>
+<h6 id="使用方式-4">使用方式</h6>
+<p>Hessian的readObject-&gt;任意对象的toString方法</p>
+<p>https://paper.seebug.org/1814/</p>
+<h4 id="反序列化利用链利用">反序列化利用链利用</h4>
+<p>rome与jackson利用链基本上都是一个简单的思路，因为他们toString方法的目的都是调用getter方法，那么就很容易推出他的利用方式，去找有哪些能够利用的getter方法。</p>
+<h5 id="romejackson">rome&amp;jackson</h5>
+<h6 id="经典永流传">经典永流传</h6>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">TemplatesImpl#getOutputProperties() -&gt; TemplatesImpl#newTransformer() -&gt;</span><br><span class="line">TemplatesImpl#getTransletInstance()/会进行初始化 -&gt; TemplatesImpl#defineTransletClasses()</span><br><span class="line">-&gt; TransletClassLoader#defineClass()</span><br></pre></td></tr></table></figure>
+<h6 id="jndi注入">jndi注入</h6>
+<p>JdbcRowSetImpl#getgetDatabaseMetaData</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">public DatabaseMetaData getDatabaseMetaData() throws SQLException &#123;</span><br><span class="line">    Connection var1 = this.connect();</span><br><span class="line">    return var1.getMetaData();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h5 id="jdk原生反序列化利用链-1">jdk原生反序列化利用链</h5>
+<p>该方法依赖于静态方法而不是getter方法，详见hessian_dlc</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>本文作者： </strong>f4nx1ng
+  </li>
+  <li class="post-copyright-link">
+      <strong>本文链接：</strong>
+      <a href="https://f4nx1ng.github.io/2024/08/19/%E5%85%B3%E4%BA%8EtoString%E6%96%B9%E6%B3%95%E4%B8%8Egetter%E6%96%B9%E6%B3%95%E5%9C%A8%E5%88%A9%E7%94%A8%E9%93%BE%E6%8B%BC%E5%87%91%E6%96%B9%E9%9D%A2%E7%9A%84%E6%80%BB%E7%BB%93/" title="关于toString方法与getter方法在利用链拼凑方面的总结">https://f4nx1ng.github.io/2024/08/19/关于toString方法与getter方法在利用链拼凑方面的总结/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/zh-CN" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96/" rel="tag"># 反序列化</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/08/19/Xstream%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/" rel="prev" title="Xstream反序列化漏洞">
+                  <i class="fa fa-angle-left"></i> Xstream反序列化漏洞
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">f4nx1ng</span>
+  </div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.umd.js" integrity="sha256-a+H7FYzJv6oU2hfsfDGM2Ohw/cR9v+hPfxHCLdmCrE8=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lozad.js/1.16.0/lozad.min.js" integrity="sha256-mOFREFhqmHeQbXpK2lp4nA3qooVgACfh88fpJftLBbc=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js" integrity="sha256-j+yj56cdEY2CwkVtGyz18fNybFGpMGJ8JxG3GSyO2+I=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/sidebar.js"></script><script src="/js/next-boot.js"></script><script src="/js/bookmark.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.1/search.js" integrity="sha256-1kfA5uHPf65M5cphT2dvymhkuyHPQp5A53EGZOnOLmc=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+  <script class="next-config" data-name="mermaid" type="application/json">{"enable":true,"theme":{"light":"neutral","dark":"dark"},"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js","integrity":"sha256-stuqcu2FrjYCXDOytWFA5SoUE/r3nkp6gTglzNSlavU="}}</script>
+  <script src="/js/third-party/tags/mermaid.js"></script>
+
+
+  <script src="/js/third-party/fancybox.js"></script>
+
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+</body>
+</html>

