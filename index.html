@@ -210,7 +210,7 @@
         <i class="far fa-calendar-check"></i>
       </span>
       <span class="post-meta-item-text">更新于</span>
-      <time title="修改时间：2025-03-14 10:26:42" itemprop="dateModified" datetime="2025-03-14T10:26:42+08:00">2025-03-14</time>
+      <time title="修改时间：2025-03-14 10:40:54" itemprop="dateModified" datetime="2025-03-14T10:40:54+08:00">2025-03-14</time>
     </span>
     <span class="post-meta-item">
       <span class="post-meta-item-icon">
@@ -232,108 +232,15 @@
     
     
     <div class="post-body" itemprop="articleBody">
-          <h4 id="section"></h4>
-<h4 id="前言">前言</h4>
-<p>这篇文章用于记录在前些年学习内网基础知识的内容。</p>
-<h4 id="基础概念">基础概念</h4>
-<h5 id="dmz">DMZ：</h5>
-<p>英文全名“Demilitarized
-Zone”，中文含义是“隔离区”，在安全领域的具体含义是“内外网防火墙之间的区域”。DMZ区是一个缓冲区，在DMZ区存放着一些公共服务器，比如论坛等。</p>
-<h5 id="局域网">局域网：</h5>
-<p>局域网就是内部网，局域网内部的电脑共用与外部的物理连接</p>
-<h5 id="工作组">工作组：</h5>
-<p>工作组（Work
-Group）是局域网中的一个概念。它是最常见最简单最普通的资源管理模式，就是将不同的电脑按功能分别列入不同的组中，以方便管理。它是最常见最简单最普通的资源管理模式，就是将不同的电脑按功能分别列入不同的组中，以方便管理。</p>
-<p>相同组中的不同用户通过对方主机的用户名和密码可以查看对方共享的文件夹，默认共享的是Users目录。不同组的不同用户通过对方主机的用户名和密码也可以查看对方共享的文件夹。所以工作组并不存在真正的集中管理作用。工作组里的所有计算机都是对等的
-, 也就是没有服务器和客户机之分的。
-一个公司有几百上甚至千台电脑，不分组的话。在电脑内找一个电脑或者找某台电脑上的共享文件。不止非常的杂乱的，找起来非常浪费时间。</p>
-<p>工作组简单理解就是分类，分门别类。便于管理与沟通。</p>
-<h5 id="域">域：</h5>
-<p>域（domain），是局域网一组计算机的名称。用于企业或者公司计算机组的统一管理和远程办公，一般必须有一台独立的域服务器，用于验证加入域的电脑和用户，这是域和计算机组的最基本的不同，计算机域的安全性更高。建立信任关系后，不同域的计算机可以相互访问。</p>
-<h5 id="工作组和域的区别">工作组和域的区别</h5>
-<p>工作组实际上是个对等网络，而域实质上是B/S架构，集中式管理。</p>
-<p>工作组：地位平等，管理分散，没有集中管理。
-域环境：地位不平等，管理集中，实现集中管理。
-域环境也可以简单的理解为工作组的升级版，更好管理。
-这里我们把域环境和工作组区分开来是因为他们的攻击手段不同，工作组中的攻击手法如DNS劫持、ARP欺骗在域环境下是没有作用的。有一些攻击手段需要一些条件，这些条件在域环境下没有，相应的攻击手段就会失效。</p>
-<h5 id="个人理解">个人理解</h5>
-<p>一般情况下会把向外提供服务的服务器放置在DMZ区域当中，其他的核心业务服务器放置在内网中</p>
-<p>域环境和工作组这两种方案都是存在于局域网当中的两种计算机安排方式，区别在于与环境当中拥有着可以管理域环境当中其他主机的管理者域控，而工作组中并没有</p>
-<h5 id="活动目录ad">活动目录AD</h5>
-<p>活动目录AD是域环境中提供目录服务的组件。活动目录存储着有关网络对象（如用户、组、计算机、共享资源、打印机和联系人等）的信息，所有的网络对象信息以一种结构化的数据存储方式来保存，使得管理员和用户能够轻松地查找和使用这些信息。目录服务是帮助用户快速准确从目录中查找到他所需要的信息的服务。安装有AD活动目录的服务器就是域控DC。</p>
-<h5 id="linux域渗透问题">linux域渗透问题：</h5>
-<p>Q：AD域控制器只在windows server系统能做吗？Linux可以？
-A：linux上也有相应的活动目录的，不过要装LDAP环境，一般企很少会用LDAP来管理的，因为功能上不及域强大，而且用linux来管理的话要求技术人员门槛也比较高，个人认为Linux还是比较适合做服务器好一点。（就是说Linux上面的域环境需要环境支撑，而且功能没有windows上的域强大，所以大部分我们遇见的都是windows，这也是没有Linux的原因。当然，Linux这个操作系统也是可以加入域的，比如域内有Linux的操作系统，有Linux的服务器也行，只是很少）</p>
-<h4 id="信息搜集">信息搜集</h4>
-<p>在这里用到的试验靶场，是第一代的God单域靶机环境。</p>
-<h5 id="案例1-基本信息收集操作演示">案例1-基本信息收集操作演示</h5>
-<p>旨在了解当前服务器的计算机基本信息，为后续判断服务器角色，网络环境等做准备</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">systeminfo 详细信息</span><br><span class="line">net start 启动服务</span><br><span class="line">tasklist 进程列表</span><br><span class="line">schtasks 计划任务</span><br></pre></td></tr></table></figure>
-<p>systeminfo执行结果，能够看到系统的相关信息，加入了哪个域等等</p>
-<img data-src="/2025/03/13/%E5%86%85%E7%BD%91%E5%AE%89%E5%85%A8-%E5%89%8D%E7%BD%AE%E5%9F%BA%E7%A1%80/systeminfo.jpg" class>
-<p>tasklist进程列表</p>
-<img data-src="/2025/03/13/%E5%86%85%E7%BD%91%E5%AE%89%E5%85%A8-%E5%89%8D%E7%BD%AE%E5%9F%BA%E7%A1%80/tasklist.jpg" class>
-<p>net start启动的服务列表</p>
-
-<p>定时任务查询（需要本地管理员权限，或者域控权限）</p>
-<img data-src="/2025/03/13/%E5%86%85%E7%BD%91%E5%AE%89%E5%85%A8-%E5%89%8D%E7%BD%AE%E5%9F%BA%E7%A1%80/schtasks.jpg" class>
-<h5 id="案例-2-网络信息收集操作演示">案例 2-网络信息收集操作演示</h5>
-<p>旨在了解当前服务器的<strong>网络接口信息</strong>，为判断当前<strong>角色，功能，网络架构</strong>做准备</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">ipconfig /all     判断存在域-dns</span><br><span class="line">net view /domain  判断存在域</span><br><span class="line">net time /domain  判断主域（所有机器的时间都和域控对齐）</span><br><span class="line">netstat -ano      当前网络端口开放</span><br><span class="line">nslookup   		  域名 追踪来源地址</span><br></pre></td></tr></table></figure>
-<p>ipconfig /all存在域和不存在域的图片（有无主DNS后缀）</p>
-<img data-src="/2025/03/13/%E5%86%85%E7%BD%91%E5%AE%89%E5%85%A8-%E5%89%8D%E7%BD%AE%E5%9F%BA%E7%A1%80/ipconfig.png" class>
-<p>也可以通过net view /domain查看是否存在域</p>
-<img data-src="/2025/03/13/%E5%86%85%E7%BD%91%E5%AE%89%E5%85%A8-%E5%89%8D%E7%BD%AE%E5%9F%BA%E7%A1%80/view.png" class>
-<p>域内计算机的时间，都是通过域控来获取，所以通过net time
-/domain可以查看域控主机名</p>
-<img data-src="/2025/03/13/%E5%86%85%E7%BD%91%E5%AE%89%E5%85%A8-%E5%89%8D%E7%BD%AE%E5%9F%BA%E7%A1%80/time.png" class>
-<p>查到主机名后，用nslookup查找ip地址</p>
-<img data-src="/2025/03/13/%E5%86%85%E7%BD%91%E5%AE%89%E5%85%A8-%E5%89%8D%E7%BD%AE%E5%9F%BA%E7%A1%80/nslookup.png" class>
-<p>当然也可以在本机，查询端口开放情况</p>
-<img data-src="/2025/03/13/%E5%86%85%E7%BD%91%E5%AE%89%E5%85%A8-%E5%89%8D%E7%BD%AE%E5%9F%BA%E7%A1%80/netstat.png" class>
-<h5 id="案例3-用户信息收集操作演示">案例3-用户信息收集操作演示</h5>
-<p>旨在了解当前<strong>计算机或域环境下的用户及用户组信息</strong>，便于<strong>后期利用凭据</strong>进行测试</p>
-<h6 id="系统默认的常见身份">系统默认的常见身份</h6>
-<p>Domain Admins：域管理员（默认对域控制器有完全控制权） Domain
-Computers：域内机器 Domain Controllers：域控制器 Domain
-Guest：域访客，权限低 Domain Users：域用户 Enterprise
-Admins：企业系统管理员用户（默认对域控制器有完全控制权）</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">whoami</span> /all 用户权限</span><br><span class="line">net config workstation 登录信息</span><br><span class="line">net user 本地用户</span><br><span class="line">net localgroup 本地用户组</span><br><span class="line">net user /domain 获取域用户信息</span><br><span class="line">net group /domain 获取域用户组信息</span><br><span class="line">wmic useraccount get /all 涉及域用户详细信息</span><br><span class="line">net group <span class="string">&quot;Domain Admins&quot;</span> /domain 查询域管理员账户</span><br><span class="line">net group <span class="string">&quot;Enterprise Admins&quot;</span> /domain 查询管理员用户组</span><br><span class="line">net group <span class="string">&quot;Domain Controllers&quot;</span> /domain 查询域控制器</span><br></pre></td></tr></table></figure>
-<p>whoami用户权限查询</p>
-<img data-src="/2025/03/13/%E5%86%85%E7%BD%91%E5%AE%89%E5%85%A8-%E5%89%8D%E7%BD%AE%E5%9F%BA%E7%A1%80/whoami.png" class>
-<p>net user查寻本地用户</p>
-<img data-src="/2025/03/13/%E5%86%85%E7%BD%91%E5%AE%89%E5%85%A8-%E5%89%8D%E7%BD%AE%E5%9F%BA%E7%A1%80/%E6%9C%AC%E5%9C%B0%E7%94%A8%E6%88%B7.png" class>
-<p>net user /domain查询域用户</p>
-
-<p>查询域用户组</p>
-
-<p>wmic useraccount get /all需要域控权限</p>
-<img data-src="/2025/03/13/%E5%86%85%E7%BD%91%E5%AE%89%E5%85%A8-%E5%89%8D%E7%BD%AE%E5%9F%BA%E7%A1%80/wmic.png" class>
-<h5 id="案例4-凭据信息收集演示">案例4-凭据信息收集演示</h5>
-<p>旨在收集各种密文，明文，口令等，为后续横向渗透做好测试准备</p>
-<h6 id="前置准备">前置准备</h6>
-<p>计算机用户 HASH，明文获取-mimikatz(win)，mimipenguin(linux)
-计算机各种协议服务口令获取-LaZagne(all)，XenArmor(win) Netsh WLAN show
-profiles Netsh WLAN show profile name=“无线名称” key=clear</p>
-<p>1.站点源码备份文件、数据库备份文件等 2.各类数据库 Web 管理入口，如
-PHPMyAdmin 3.浏览器保存密码、浏览器 Cookies 4.其他用户会话、3389 和
-ipc$连接记录、回收站内容 5.Windows 保存的 WIFI 密码
-6.网络内部的各种帐号和密码，如：Email、VPN、FTP、OA 等</p>
-<p>mimikatz使用需要管理员的权限，使用步骤使用readme当中的步骤即可</p>
-<img data-src="/2025/03/13/%E5%86%85%E7%BD%91%E5%AE%89%E5%85%A8-%E5%89%8D%E7%BD%AE%E5%9F%BA%E7%A1%80/mimikatz.png" class>
-<p>lazagne这款工具的使用极为方便，但是其效果比较的垃圾，但是是免费，所以就没什么可挑剔的，优势：一直更新，且全平台适用，劣势：菜</p>
-<img data-src="/2025/03/13/%E5%86%85%E7%BD%91%E5%AE%89%E5%85%A8-%E5%89%8D%E7%BD%AE%E5%9F%BA%E7%A1%80/lazagne.png" class>
-<h5 id="案例5探针主机域控架构服务操作演示">案例5，探针主机域控架构服务操作演示</h5>
-<p>首先是已经在前置知识当中出现过的两条探测域内DC的命令</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">探针域控制器名及地址信息</span><br><span class="line">net time /domain</span><br><span class="line">nslookup ping</span><br></pre></td></tr></table></figure>
-<h6 id="内部命令探测域内存活地址">内部命令探测域内存活地址</h6>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">探针域内存活主机及地址信息</span><br><span class="line">for /L %I in (1,1,254) DO @ping -w 1 -n 1 192.168.3.%I | findstr &quot;TTL=&quot; </span><br></pre></td></tr></table></figure>
-<ul>
-<li><p>for循环 <code>for %I in (sequence) do command</code></p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">for /l %i in (1,1,10) do @echo %i #循环十次</span><br><span class="line">#（start，step,stop）括号中的内容，do后面接需要执行的命令</span><br><span class="line">for /L 表示以增量形式从 start 以每次增加 step，直到到 end 的一个数字序列。如果 start 小于 end，就会执行该命令。如果迭代变量超过 end，则命令解释程序退出此循环。</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-
+          <p>这篇文章主要讲述关于内网学习部分的基础知识部分，为后续的域渗透技术埋下伏笔</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2025/03/13/%E5%86%85%E7%BD%91%E5%AE%89%E5%85%A8-%E5%89%8D%E7%BD%AE%E5%9F%BA%E7%A1%80/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
       
     </div>
 
